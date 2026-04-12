@@ -259,7 +259,7 @@ export async function syncVault(vault: Vault, settings: CosmosSettings): Promise
         entry.date,
         contentToString(entry.content, entry.contentType),
       );
-      const meta = generateOrbital(entry.contentType, entry.content, entry.date, idx, secureSeed);
+      const meta = generateOrbital(entry.contentType, entry.content, entry.date, idx, secureSeed, parsed.length);
       enriched.push({ entry, meta });
     }
 

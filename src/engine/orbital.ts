@@ -156,9 +156,10 @@ export function contentToString(content: EntryContent, contentType: ContentType)
   }
 }
 
-function orbitalRadius(bodyIndex: number): number {
-  const innerEdge = 3;
-  const spread = 2.5;
+function orbitalRadius(bodyIndex: number, totalBodies?: number): number {
+  const innerEdge = 1.2;
+  const n = Math.max(totalBodies ?? 50, 10);
+  const spread = Math.min(2.5, 40 / Math.sqrt(n));
   const jitter = 0.3;
   return innerEdge + Math.sqrt(bodyIndex) * spread +
     Math.sin(bodyIndex * 2.39996) * jitter;
@@ -179,6 +180,7 @@ export function generateOrbital(
   date: string,
   bodyIndex: number,
   secureSeed?: SecureSeed,
+  totalBodies?: number,
 ): { kind: BodyKind; orbital: OrbitalParams; id: string } {
   const contentStr = contentToString(content, contentType);
 
@@ -216,7 +218,7 @@ export function generateOrbital(
         : genericMassScore(contentStr));
 
   // ── Orbital parameters ──────────────────────────────────────
-  const semiMajorAxis = orbitalRadius(bodyIndex);
+  const semiMajorAxis = orbitalRadius(bodyIndex, totalBodies);
 
   const ecc = KIND_ECC[kind];
   const eccentricity = Math.min(0.92, ecc.base + h[1] * ecc.range);
