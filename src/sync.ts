@@ -205,7 +205,17 @@ export async function syncVault(vault: Vault, settings: CosmosSettings): Promise
 
     // ── Upsert star ───────────────────────────────────────────
 
-    const starName = settings.starName || 'default';
+    let starName = settings.starName;
+    if (!starName) {
+      // Auto-name: Sol 1, Sol 2, ... based on existing star count
+      const { count } = await client
+        .from('stars')
+        .select('id', { count: 'exact', head: true })
+        .eq('system_id', systemId);
+      starName = `Sol ${(count ?? 0) + 1}`;
+      settings.starName = starName;
+    }
+
     const { data: starIdData, error: starErr } = await client.rpc('upsert_star', {
       p_system_id: systemId,
       p_name: starName,

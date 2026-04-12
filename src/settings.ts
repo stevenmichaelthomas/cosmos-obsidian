@@ -15,7 +15,7 @@ export interface CosmosSettings {
 export const DEFAULT_SETTINGS: CosmosSettings = {
   systemName: '',
   syncFolder: '',
-  starName: 'default',
+  starName: '',
   passphraseHash: '',
   systemSecret: '',
 };
@@ -51,9 +51,9 @@ export class CosmosSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('Star name')
-      .setDesc('Name of the star (use different names to group entries)')
+      .setDesc('Name of the star (blank = auto: Sol 1, Sol 2, ...)')
       .addText(text => text
-        .setPlaceholder('default')
+        .setPlaceholder('Sol 1')
         .setValue(this.plugin.settings.starName)
         .onChange(async (value) => {
           this.plugin.settings.starName = value;

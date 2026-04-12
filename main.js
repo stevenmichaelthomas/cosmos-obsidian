@@ -32,7 +32,7 @@ var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 var DEFAULT_SETTINGS = {
   systemName: "",
   syncFolder: "",
-  starName: "default",
+  starName: "",
   passphraseHash: "",
   systemSecret: ""
 };
@@ -53,7 +53,7 @@ var CosmosSettingTab = class extends import_obsidian.PluginSettingTab {
       this.plugin.settings.systemName = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian.Setting(containerEl).setName("Star name").setDesc("Name of the star (use different names to group entries)").addText((text) => text.setPlaceholder("default").setValue(this.plugin.settings.starName).onChange(async (value) => {
+    new import_obsidian.Setting(containerEl).setName("Star name").setDesc("Name of the star (blank = auto: Sol 1, Sol 2, ...)").addText((text) => text.setPlaceholder("Sol 1").setValue(this.plugin.settings.starName).onChange(async (value) => {
       this.plugin.settings.starName = value;
       await this.plugin.saveSettings();
     }));
@@ -20356,7 +20356,12 @@ async function syncVault(vault, settings) {
       }
       systemId = newId;
     }
-    const starName = settings.starName || "default";
+    let starName = settings.starName;
+    if (!starName) {
+      const { count } = await client.from("stars").select("id", { count: "exact", head: true }).eq("system_id", systemId);
+      starName = `Sol ${(count ?? 0) + 1}`;
+      settings.starName = starName;
+    }
     const { data: starIdData, error: starErr } = await client.rpc("upsert_star", {
       p_system_id: systemId,
       p_name: starName,
