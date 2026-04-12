@@ -2,7 +2,8 @@ import { Notice, Vault, TFile, parseYaml } from 'obsidian';
 import { createClient } from '@supabase/supabase-js';
 import type { CosmosSettings } from './settings';
 import type { ContentType, EntryContent, HaikuContent, NoteContent, BodyKind, OrbitalParams } from './types';
-import { generateOrbital } from './engine/orbital';
+import { generateOrbital, contentToString } from './engine/orbital';
+import { computeSecureSeed } from './engine/hash';
 
 // ── Helpers ─────────────────────────────────────────────────────
 
@@ -164,9 +165,12 @@ export async function syncVault(vault: Vault, settings: CosmosSettings): Promise
   const notice = new Notice('Cosmos: Starting sync...', 0);
 
   try {
-    // Generate passphrase hash if missing
+    // Generate passphrase hash and system secret if missing
     if (!settings.passphraseHash) {
       settings.passphraseHash = randomHash();
+    }
+    if (!settings.systemSecret) {
+      settings.systemSecret = randomHash();
       // Settings will be saved by caller after sync completes
     }
 
@@ -246,11 +250,18 @@ export async function syncVault(vault: Vault, settings: CosmosSettings): Promise
     // Sort by date for stable body indices
     parsed.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    // Generate orbital metadata
-    const enriched = parsed.map((entry, idx) => {
-      const meta = generateOrbital(entry.contentType, entry.content, entry.date, idx);
-      return { entry, meta };
-    });
+    // Generate orbital metadata — always use secure seeds (content never leaves the machine)
+    const enriched: { entry: ParsedEntry; meta: ReturnType<typeof generateOrbital> }[] = [];
+    for (let idx = 0; idx < parsed.length; idx++) {
+      const entry = parsed[idx];
+      const secureSeed = await computeSecureSeed(
+        settings.systemSecret,
+        entry.date,
+        contentToString(entry.content, entry.contentType),
+      );
+      const meta = generateOrbital(entry.contentType, entry.content, entry.date, idx, secureSeed);
+      enriched.push({ entry, meta });
+    }
 
     // Filter to new entries
     const newEntries = enriched.filter(({ meta }) => !existingEntryIds.has(meta.id));

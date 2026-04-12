@@ -8,6 +8,7 @@ export interface CosmosSettings {
   syncFolder: string;   // '' means whole vault
   starName: string;     // default: 'default'
   passphraseHash: string; // auto-generated, meaningless (no content is sent)
+  systemSecret: string; // per-system secret for keyed SHA-256 orbital hashing (auto-generated)
 }
 
 export const DEFAULT_SETTINGS: CosmosSettings = {
@@ -17,6 +18,7 @@ export const DEFAULT_SETTINGS: CosmosSettings = {
   syncFolder: '',
   starName: 'default',
   passphraseHash: '',
+  systemSecret: '',
 };
 
 export class CosmosSettingTab extends PluginSettingTab {
