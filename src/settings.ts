@@ -1,9 +1,10 @@
 import { App, PluginSettingTab, Setting } from 'obsidian';
 import type CosmosPlugin from './main';
 
+export const SUPABASE_URL = 'https://gzhdsgkjwxjuelsvksde.supabase.co';
+export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6aGRzZ2tqd3hqdWVsc3Zrc2RlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxNjAzNzYsImV4cCI6MjA4OTczNjM3Nn0.D1B9zbnAynYDkydGVHMSuEP-rzwHoDh5812YLUrWizg';
+
 export interface CosmosSettings {
-  supabaseUrl: string;
-  supabaseAnonKey: string;
   systemName: string;
   syncFolder: string;   // '' means whole vault
   starName: string;     // default: 'default'
@@ -12,8 +13,6 @@ export interface CosmosSettings {
 }
 
 export const DEFAULT_SETTINGS: CosmosSettings = {
-  supabaseUrl: '',
-  supabaseAnonKey: '',
   systemName: '',
   syncFolder: '',
   starName: 'default',
@@ -72,26 +71,5 @@ export class CosmosSettingTab extends PluginSettingTab {
           await this.plugin.saveSettings();
         }));
 
-    new Setting(containerEl)
-      .setName('Supabase URL')
-      .setDesc('Your Supabase project URL')
-      .addText(text => text
-        .setPlaceholder('https://xxx.supabase.co')
-        .setValue(this.plugin.settings.supabaseUrl)
-        .onChange(async (value) => {
-          this.plugin.settings.supabaseUrl = value;
-          await this.plugin.saveSettings();
-        }));
-
-    new Setting(containerEl)
-      .setName('Supabase anon key')
-      .setDesc('Your Supabase anonymous/public key')
-      .addText(text => text
-        .setPlaceholder('eyJ...')
-        .setValue(this.plugin.settings.supabaseAnonKey)
-        .onChange(async (value) => {
-          this.plugin.settings.supabaseAnonKey = value;
-          await this.plugin.saveSettings();
-        }));
   }
 }

@@ -35,8 +35,6 @@ Open Settings → Cosmos:
 - **System name** — your solar system's name in Cosmos
 - **Star name** — group entries under a named star (default: "default")
 - **Sync folder** — limit sync to a specific folder (blank = entire vault)
-- **Supabase URL** — your Cosmos backend URL
-- **Supabase anon key** — your Cosmos public key
 
 ## Usage
 

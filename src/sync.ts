@@ -1,5 +1,6 @@
 import { Notice, Vault, TFile, parseYaml } from 'obsidian';
 import { createClient } from '@supabase/supabase-js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './settings';
 import type { CosmosSettings } from './settings';
 import type { ContentType, EntryContent, HaikuContent, NoteContent, BodyKind, OrbitalParams } from './types';
 import { generateOrbital, contentToString } from './engine/orbital';
@@ -157,8 +158,8 @@ function isExcluded(path: string): boolean {
 
 export async function syncVault(vault: Vault, settings: CosmosSettings): Promise<void> {
   // Validate settings
-  if (!settings.supabaseUrl || !settings.supabaseAnonKey || !settings.systemName) {
-    new Notice('Cosmos: Please configure Supabase URL, key, and system name in settings.');
+  if (!settings.systemName) {
+    new Notice('Cosmos: Please set a system name in settings.');
     return;
   }
 
@@ -174,7 +175,7 @@ export async function syncVault(vault: Vault, settings: CosmosSettings): Promise
       // Settings will be saved by caller after sync completes
     }
 
-    const client = createClient(settings.supabaseUrl, settings.supabaseAnonKey);
+    const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     const slug = slugify(settings.systemName);
 
     // ── Get or create system ──────────────────────────────────

@@ -27,9 +27,9 @@ var import_obsidian3 = require("obsidian");
 
 // src/settings.ts
 var import_obsidian = require("obsidian");
+var SUPABASE_URL = "https://gzhdsgkjwxjuelsvksde.supabase.co";
+var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6aGRzZ2tqd3hqdWVsc3Zrc2RlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxNjAzNzYsImV4cCI6MjA4OTczNjM3Nn0.D1B9zbnAynYDkydGVHMSuEP-rzwHoDh5812YLUrWizg";
 var DEFAULT_SETTINGS = {
-  supabaseUrl: "",
-  supabaseAnonKey: "",
   systemName: "",
   syncFolder: "",
   starName: "default",
@@ -59,14 +59,6 @@ var CosmosSettingTab = class extends import_obsidian.PluginSettingTab {
     }));
     new import_obsidian.Setting(containerEl).setName("Sync folder").setDesc("Folder to sync (leave blank for entire vault)").addText((text) => text.setPlaceholder("").setValue(this.plugin.settings.syncFolder).onChange(async (value) => {
       this.plugin.settings.syncFolder = value;
-      await this.plugin.saveSettings();
-    }));
-    new import_obsidian.Setting(containerEl).setName("Supabase URL").setDesc("Your Supabase project URL").addText((text) => text.setPlaceholder("https://xxx.supabase.co").setValue(this.plugin.settings.supabaseUrl).onChange(async (value) => {
-      this.plugin.settings.supabaseUrl = value;
-      await this.plugin.saveSettings();
-    }));
-    new import_obsidian.Setting(containerEl).setName("Supabase anon key").setDesc("Your Supabase anonymous/public key").addText((text) => text.setPlaceholder("eyJ...").setValue(this.plugin.settings.supabaseAnonKey).onChange(async (value) => {
-      this.plugin.settings.supabaseAnonKey = value;
       await this.plugin.saveSettings();
     }));
   }
@@ -20334,8 +20326,8 @@ function isExcluded(path) {
   return parts.some((p) => EXCLUDED_DIRS.has(p) || p.startsWith("."));
 }
 async function syncVault(vault, settings) {
-  if (!settings.supabaseUrl || !settings.supabaseAnonKey || !settings.systemName) {
-    new import_obsidian2.Notice("Cosmos: Please configure Supabase URL, key, and system name in settings.");
+  if (!settings.systemName) {
+    new import_obsidian2.Notice("Cosmos: Please set a system name in settings.");
     return;
   }
   const notice = new import_obsidian2.Notice("Cosmos: Starting sync...", 0);
@@ -20346,7 +20338,7 @@ async function syncVault(vault, settings) {
     if (!settings.systemSecret) {
       settings.systemSecret = randomHash();
     }
-    const client = createClient(settings.supabaseUrl, settings.supabaseAnonKey);
+    const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     const slug = slugify(settings.systemName);
     const { data: existing } = await client.from("solar_systems").select("id").eq("slug", slug).maybeSingle();
     let systemId;
