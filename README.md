@@ -53,6 +53,6 @@ Only the vault that created a system can delete it. Ownership is verified crypto
 
 ## Explore the galaxy
 
-[cosmos-app-three.vercel.app](https://cosmos-app-three.vercel.app)
+[cosmos.supermagicapps.com](https://cosmos.supermagicapps.com)
 
 A science-based art project.
