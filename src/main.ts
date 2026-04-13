@@ -1,4 +1,4 @@
-import { Plugin, Modal, Notice } from 'obsidian';
+import { Plugin, Modal, Notice, Setting } from 'obsidian';
 import { createClient } from '@supabase/supabase-js';
 import { CosmosSettings, CosmosSettingTab, DEFAULT_SETTINGS, SUPABASE_URL, SUPABASE_ANON_KEY } from './settings';
 import { syncVault, computeOwnerHash } from './sync';
@@ -13,7 +13,7 @@ export default class CosmosPlugin extends Plugin {
 
     this.addCommand({
       id: 'sync-vault',
-      name: 'Sync vault to Cosmos',
+      name: 'Sync vault',
       callback: async () => {
         await syncVault(this.app.vault, this.settings);
         // Persist settings in case passphraseHash was generated
@@ -23,13 +23,13 @@ export default class CosmosPlugin extends Plugin {
 
     this.addCommand({
       id: 'delete-system',
-      name: 'Delete system from Cosmos',
+      name: 'Delete system',
       callback: () => {
         new DeleteSystemModal(this.app, this).open();
       },
     });
 
-    this.addRibbonIcon('orbit', 'Sync vault to Cosmos', async () => {
+    this.addRibbonIcon('orbit', 'Sync vault', async () => {
       await syncVault(this.app.vault, this.settings);
       await this.saveSettings();
     });
@@ -67,7 +67,7 @@ class DeleteSystemModal extends Modal {
       return;
     }
 
-    contentEl.createEl('h3', { text: 'Delete system from Cosmos' });
+    new Setting(contentEl).setName('Delete system').setHeading();
     contentEl.createEl('p', {
       text: `This will permanently delete the solar system "${slug}" and all its stars and entries. This cannot be undone.`,
     });
@@ -77,37 +77,39 @@ class DeleteSystemModal extends Modal {
     btnRow.createEl('button', { text: 'Cancel' }).addEventListener('click', () => this.close());
 
     const deleteBtn = btnRow.createEl('button', { text: 'Delete', cls: 'mod-warning' });
-    deleteBtn.addEventListener('click', async () => {
-      deleteBtn.disabled = true;
-      deleteBtn.textContent = 'Deleting...';
-
-      try {
-        const ownerHash = await computeOwnerHash(this.plugin.settings.systemSecret);
-        const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        const { data, error } = await client.rpc('delete_system', {
-          p_slug: slug,
-          p_owner_secret_hash: ownerHash,
-        });
-
-        if (error) {
-          new Notice(`Delete failed: ${error.message}`, 8000);
-        } else if (data === true) {
-          this.plugin.settings.systemSlug = '';
-          this.plugin.settings.starName = '';
-          this.plugin.settings.passphraseHash = '';
-          this.plugin.settings.systemSecret = '';
-          await this.plugin.saveSettings();
-          new Notice(`System "${slug}" deleted. You can create a new one by syncing.`, 5000);
-        } else {
-          new Notice('Delete failed: owner secret did not match.', 8000);
-        }
-      } catch (err) {
+    deleteBtn.addEventListener('click', () => {
+      this.handleDelete(slug, deleteBtn).catch(err => {
         const msg = err instanceof Error ? err.message : String(err);
         new Notice(`Delete failed: ${msg}`, 8000);
-      }
-
-      this.close();
+      });
     });
+  }
+
+  async handleDelete(slug: string, deleteBtn: HTMLButtonElement) {
+    deleteBtn.disabled = true;
+    deleteBtn.textContent = 'Deleting...';
+
+    const ownerHash = await computeOwnerHash(this.plugin.settings.systemSecret);
+    const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const { data, error } = await client.rpc('delete_system', {
+      p_slug: slug,
+      p_owner_secret_hash: ownerHash,
+    });
+
+    if (error) {
+      new Notice(`Delete failed: ${error.message}`, 8000);
+    } else if (data === true) {
+      this.plugin.settings.systemSlug = '';
+      this.plugin.settings.starName = '';
+      this.plugin.settings.passphraseHash = '';
+      this.plugin.settings.systemSecret = '';
+      await this.plugin.saveSettings();
+      new Notice(`System "${slug}" deleted. You can create a new one by syncing.`, 5000);
+    } else {
+      new Notice('Delete failed: owner secret did not match.', 8000);
+    }
+
+    this.close();
   }
 
   onClose() {

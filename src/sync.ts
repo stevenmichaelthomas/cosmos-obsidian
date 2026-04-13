@@ -2,7 +2,7 @@ import { Notice, Vault, TFile, parseYaml } from 'obsidian';
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, COSMOS_BASE_URL } from './settings';
 import type { CosmosSettings } from './settings';
-import type { ContentType, EntryContent, HaikuContent, NoteContent, BodyKind, OrbitalParams } from './types';
+import type { ContentType, EntryContent, HaikuContent, NoteContent } from './types';
 import { generateOrbital, contentToString } from './engine/orbital';
 import { computeSecureSeed } from './engine/hash';
 
@@ -146,12 +146,12 @@ function parseFile(file: TFile, raw: string): ParsedEntry {
 // ── Excluded dirs ───────────────────────────────────────────────
 
 const EXCLUDED_DIRS = new Set([
-  '.obsidian', '.trash', '.git', 'node_modules', 'attachments', 'assets', 'media',
+  '.trash', '.git', 'node_modules', 'attachments', 'assets', 'media',
 ]);
 
-function isExcluded(path: string): boolean {
+function isExcluded(path: string, configDir: string): boolean {
   const parts = path.split('/');
-  return parts.some(p => EXCLUDED_DIRS.has(p) || p.startsWith('.'));
+  return parts.some(p => p === configDir || EXCLUDED_DIRS.has(p) || p.startsWith('.'));
 }
 
 // ── Owner hash ──────────────────────────────────────────────────
@@ -168,11 +168,11 @@ export async function computeOwnerHash(secret: string): Promise<string> {
 export async function syncVault(vault: Vault, settings: CosmosSettings): Promise<void> {
   // Validate settings
   if (!settings.systemName) {
-    new Notice('Cosmos: Please set a system name in settings.');
+    new Notice('Cosmos: please set a system name in settings.');
     return;
   }
 
-  const notice = new Notice('Cosmos: Starting sync...', 0);
+  const notice = new Notice('Cosmos: starting sync...', 0);
 
   try {
     // Generate passphrase hash and system secret if missing
@@ -202,7 +202,7 @@ export async function syncVault(vault: Vault, settings: CosmosSettings): Promise
     if (existing) {
       systemId = existing.id;
     } else {
-      notice.setMessage('Cosmos: Creating solar system...');
+      notice.setMessage('Cosmos: creating solar system...');
       const ownerHash = await computeOwnerHash(settings.systemSecret);
       const { data: newId, error } = await client.rpc('create_solar_system', {
         p_name: settings.systemName,
@@ -249,23 +249,31 @@ export async function syncVault(vault: Vault, settings: CosmosSettings): Promise
 
     // ── Fetch existing entry IDs ──────────────────────────────
 
-    const { data: existingEntries, error: entriesErr } = await client
-      .rpc('get_entries_public', { p_system_id: systemId }).limit(10000);
-    if (entriesErr) {
-      throw new Error(`Failed to load existing entries: ${entriesErr.message}`);
-    }
-
     const existingEntryIds = new Set<string>();
-    for (const e of (existingEntries as { orbital_meta: { id?: string } | null }[] || [])) {
-      if (e.orbital_meta?.id) existingEntryIds.add(e.orbital_meta.id);
+    const PAGE_SIZE = 1000;
+    let offset = 0;
+    while (true) {
+      const { data, error: entriesErr } = await client
+        .rpc('get_entries_public', { p_system_id: systemId })
+        .range(offset, offset + PAGE_SIZE - 1);
+      if (entriesErr) {
+        throw new Error(`Failed to load existing entries: ${entriesErr.message}`);
+      }
+      const page = (data ?? []) as { orbital_meta: { id?: string } | null }[];
+      for (const e of page) {
+        if (e.orbital_meta?.id) existingEntryIds.add(e.orbital_meta.id);
+      }
+      if (page.length < PAGE_SIZE) break;
+      offset += PAGE_SIZE;
     }
 
     // ── Walk vault files ──────────────────────────────────────
 
-    notice.setMessage('Cosmos: Reading vault...');
+    notice.setMessage('Cosmos: reading vault...');
 
+    const configDir = vault.configDir;
     const mdFiles = vault.getMarkdownFiles().filter(f => {
-      if (isExcluded(f.path)) return false;
+      if (isExcluded(f.path, configDir)) return false;
       if (settings.syncFolder) {
         return f.path.startsWith(settings.syncFolder + '/') || f.path === settings.syncFolder;
       }
@@ -314,7 +322,7 @@ export async function syncVault(vault: Vault, settings: CosmosSettings): Promise
     if (newEntries.length === 0) {
       notice.hide();
       const frag = document.createDocumentFragment();
-      frag.appendText(`Cosmos: Up to date (${skipped} entries synced). `);
+      frag.appendText(`Cosmos: up to date (${skipped} entries synced). `);
       const link = document.createElement('a');
       link.href = `${COSMOS_BASE_URL}/s/${slug}`;
       link.textContent = 'View your galaxy →';
@@ -362,11 +370,11 @@ export async function syncVault(vault: Vault, settings: CosmosSettings): Promise
 
     notice.hide();
     const frag = document.createDocumentFragment();
-    frag.appendText(`Cosmos: Synced ${inserted} new entries (${skipped} already synced). `);
+    frag.appendText(`Cosmos: synced ${inserted} new entries (${skipped} already synced). `);
     const link = document.createElement('a');
     link.href = `${COSMOS_BASE_URL}/s/${slug}`;
     link.textContent = 'View your galaxy →';
-    link.style.cursor = 'pointer';
+    link.className = 'cosmos-notice-link';
     link.addEventListener('click', (e) => {
       e.preventDefault();
       window.open(link.href, '_blank');

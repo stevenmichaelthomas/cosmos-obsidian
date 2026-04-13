@@ -38,7 +38,7 @@ export class CosmosSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    new Setting(containerEl).setName('Cosmos sync').setHeading();
+    new Setting(containerEl).setHeading();
     containerEl.createEl('p', {
       text: 'Only orbital metadata leaves your machine. Content is never sent.',
       cls: 'setting-item-description',

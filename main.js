@@ -20112,7 +20112,7 @@ ${c.description}`;
 function orbitalRadius(bodyIndex, totalBodies) {
   const innerEdge = 1.2;
   const n = Math.max(totalBodies ?? 50, 10);
-  const spread = Math.max(1.5, Math.min(2.5, 60 / (Math.sqrt(n) + 4)));
+  const spread = Math.max(2, Math.min(2.8, 80 / (Math.sqrt(n) + 4)));
   const jitter = 0.3;
   return innerEdge + Math.sqrt(bodyIndex) * spread + Math.sin(bodyIndex * 2.39996) * jitter;
 }
@@ -20277,7 +20277,6 @@ function parseFile(file, raw) {
   return { date, contentType, content, filePath: file.path };
 }
 var EXCLUDED_DIRS = /* @__PURE__ */ new Set([
-  ".obsidian",
   ".trash",
   ".git",
   "node_modules",
@@ -20285,9 +20284,9 @@ var EXCLUDED_DIRS = /* @__PURE__ */ new Set([
   "assets",
   "media"
 ]);
-function isExcluded(path) {
+function isExcluded(path, configDir) {
   const parts = path.split("/");
-  return parts.some((p) => EXCLUDED_DIRS.has(p) || p.startsWith("."));
+  return parts.some((p) => p === configDir || EXCLUDED_DIRS.has(p) || p.startsWith("."));
 }
 async function computeOwnerHash(secret) {
   const enc = new TextEncoder();
@@ -20296,10 +20295,10 @@ async function computeOwnerHash(secret) {
 }
 async function syncVault(vault, settings) {
   if (!settings.systemName) {
-    new import_obsidian.Notice("Cosmos: Please set a system name in settings.");
+    new import_obsidian.Notice("Cosmos: please set a system name in settings.");
     return;
   }
-  const notice = new import_obsidian.Notice("Cosmos: Starting sync...", 0);
+  const notice = new import_obsidian.Notice("Cosmos: starting sync...", 0);
   try {
     if (!settings.passphraseHash) {
       settings.passphraseHash = randomHash();
@@ -20314,7 +20313,7 @@ async function syncVault(vault, settings) {
     if (existing) {
       systemId = existing.id;
     } else {
-      notice.setMessage("Cosmos: Creating solar system...");
+      notice.setMessage("Cosmos: creating solar system...");
       const ownerHash2 = await computeOwnerHash(settings.systemSecret);
       const { data: newId, error } = await client.rpc("create_solar_system", {
         p_name: settings.systemName,
@@ -20347,17 +20346,25 @@ async function syncVault(vault, settings) {
       throw new Error(`Failed to upsert star: ${starErr?.message || "unknown error"}`);
     }
     const starId = starIdData;
-    const { data: existingEntries, error: entriesErr } = await client.rpc("get_entries_public", { p_system_id: systemId }).limit(1e4);
-    if (entriesErr) {
-      throw new Error(`Failed to load existing entries: ${entriesErr.message}`);
-    }
     const existingEntryIds = /* @__PURE__ */ new Set();
-    for (const e of existingEntries || []) {
-      if (e.orbital_meta?.id) existingEntryIds.add(e.orbital_meta.id);
+    const PAGE_SIZE = 1e3;
+    let offset = 0;
+    while (true) {
+      const { data, error: entriesErr } = await client.rpc("get_entries_public", { p_system_id: systemId }).range(offset, offset + PAGE_SIZE - 1);
+      if (entriesErr) {
+        throw new Error(`Failed to load existing entries: ${entriesErr.message}`);
+      }
+      const page = data ?? [];
+      for (const e of page) {
+        if (e.orbital_meta?.id) existingEntryIds.add(e.orbital_meta.id);
+      }
+      if (page.length < PAGE_SIZE) break;
+      offset += PAGE_SIZE;
     }
-    notice.setMessage("Cosmos: Reading vault...");
+    notice.setMessage("Cosmos: reading vault...");
+    const configDir = vault.configDir;
     const mdFiles = vault.getMarkdownFiles().filter((f) => {
-      if (isExcluded(f.path)) return false;
+      if (isExcluded(f.path, configDir)) return false;
       if (settings.syncFolder) {
         return f.path.startsWith(settings.syncFolder + "/") || f.path === settings.syncFolder;
       }
@@ -20396,7 +20403,7 @@ async function syncVault(vault, settings) {
     if (newEntries.length === 0) {
       notice.hide();
       const frag2 = document.createDocumentFragment();
-      frag2.appendText(`Cosmos: Up to date (${skipped} entries synced). `);
+      frag2.appendText(`Cosmos: up to date (${skipped} entries synced). `);
       const link2 = document.createElement("a");
       link2.href = `${COSMOS_BASE_URL}/s/${slug}`;
       link2.textContent = "View your galaxy \u2192";
@@ -20438,11 +20445,11 @@ async function syncVault(vault, settings) {
     }
     notice.hide();
     const frag = document.createDocumentFragment();
-    frag.appendText(`Cosmos: Synced ${inserted} new entries (${skipped} already synced). `);
+    frag.appendText(`Cosmos: synced ${inserted} new entries (${skipped} already synced). `);
     const link = document.createElement("a");
     link.href = `${COSMOS_BASE_URL}/s/${slug}`;
     link.textContent = "View your galaxy \u2192";
-    link.style.cursor = "pointer";
+    link.className = "cosmos-notice-link";
     link.addEventListener("click", (e) => {
       e.preventDefault();
       window.open(link.href, "_blank");
@@ -20477,7 +20484,7 @@ var CosmosSettingTab = class extends import_obsidian2.PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    new import_obsidian2.Setting(containerEl).setName("Cosmos sync").setHeading();
+    new import_obsidian2.Setting(containerEl).setHeading();
     containerEl.createEl("p", {
       text: "Only orbital metadata leaves your machine. Content is never sent.",
       cls: "setting-item-description"
@@ -20574,7 +20581,7 @@ var CosmosPlugin = class extends import_obsidian3.Plugin {
     this.addSettingTab(new CosmosSettingTab(this.app, this));
     this.addCommand({
       id: "sync-vault",
-      name: "Sync vault to Cosmos",
+      name: "Sync vault",
       callback: async () => {
         await syncVault(this.app.vault, this.settings);
         await this.saveSettings();
@@ -20582,12 +20589,12 @@ var CosmosPlugin = class extends import_obsidian3.Plugin {
     });
     this.addCommand({
       id: "delete-system",
-      name: "Delete system from Cosmos",
+      name: "Delete system",
       callback: () => {
         new DeleteSystemModal(this.app, this).open();
       }
     });
-    this.addRibbonIcon("orbit", "Sync vault to Cosmos", async () => {
+    this.addRibbonIcon("orbit", "Sync vault", async () => {
       await syncVault(this.app.vault, this.settings);
       await this.saveSettings();
     });
@@ -20613,41 +20620,42 @@ var DeleteSystemModal = class extends import_obsidian3.Modal {
       contentEl.createEl("p", { text: "No system has been synced yet. Nothing to delete." });
       return;
     }
-    contentEl.createEl("h3", { text: "Delete system from Cosmos" });
+    new import_obsidian3.Setting(contentEl).setName("Delete system").setHeading();
     contentEl.createEl("p", {
       text: `This will permanently delete the solar system "${slug}" and all its stars and entries. This cannot be undone.`
     });
     const btnRow = contentEl.createDiv({ cls: "modal-button-container" });
     btnRow.createEl("button", { text: "Cancel" }).addEventListener("click", () => this.close());
     const deleteBtn = btnRow.createEl("button", { text: "Delete", cls: "mod-warning" });
-    deleteBtn.addEventListener("click", async () => {
-      deleteBtn.disabled = true;
-      deleteBtn.textContent = "Deleting...";
-      try {
-        const ownerHash = await computeOwnerHash(this.plugin.settings.systemSecret);
-        const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        const { data, error } = await client.rpc("delete_system", {
-          p_slug: slug,
-          p_owner_secret_hash: ownerHash
-        });
-        if (error) {
-          new import_obsidian3.Notice(`Delete failed: ${error.message}`, 8e3);
-        } else if (data === true) {
-          this.plugin.settings.systemSlug = "";
-          this.plugin.settings.starName = "";
-          this.plugin.settings.passphraseHash = "";
-          this.plugin.settings.systemSecret = "";
-          await this.plugin.saveSettings();
-          new import_obsidian3.Notice(`System "${slug}" deleted. You can create a new one by syncing.`, 5e3);
-        } else {
-          new import_obsidian3.Notice("Delete failed: owner secret did not match.", 8e3);
-        }
-      } catch (err) {
+    deleteBtn.addEventListener("click", () => {
+      this.handleDelete(slug, deleteBtn).catch((err) => {
         const msg = err instanceof Error ? err.message : String(err);
         new import_obsidian3.Notice(`Delete failed: ${msg}`, 8e3);
-      }
-      this.close();
+      });
     });
+  }
+  async handleDelete(slug, deleteBtn) {
+    deleteBtn.disabled = true;
+    deleteBtn.textContent = "Deleting...";
+    const ownerHash = await computeOwnerHash(this.plugin.settings.systemSecret);
+    const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const { data, error } = await client.rpc("delete_system", {
+      p_slug: slug,
+      p_owner_secret_hash: ownerHash
+    });
+    if (error) {
+      new import_obsidian3.Notice(`Delete failed: ${error.message}`, 8e3);
+    } else if (data === true) {
+      this.plugin.settings.systemSlug = "";
+      this.plugin.settings.starName = "";
+      this.plugin.settings.passphraseHash = "";
+      this.plugin.settings.systemSecret = "";
+      await this.plugin.saveSettings();
+      new import_obsidian3.Notice(`System "${slug}" deleted. You can create a new one by syncing.`, 5e3);
+    } else {
+      new import_obsidian3.Notice("Delete failed: owner secret did not match.", 8e3);
+    }
+    this.close();
   }
   onClose() {
     this.contentEl.empty();
