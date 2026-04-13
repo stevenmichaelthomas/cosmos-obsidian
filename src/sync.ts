@@ -306,7 +306,7 @@ export async function syncVault(vault: Vault, settings: CosmosSettings): Promise
       const link = document.createElement('a');
       link.href = `${COSMOS_BASE_URL}/s/${slug}`;
       link.textContent = 'View your galaxy →';
-      link.style.cursor = 'pointer';
+      link.className = 'cosmos-notice-link';
       link.addEventListener('click', (e) => {
         e.preventDefault();
         window.open(link.href, '_blank');

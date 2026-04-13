@@ -51,6 +51,10 @@ Each sync reads your vault, computes orbital parameters locally, and uploads onl
 
 Only the vault that created a system can delete it. Ownership is verified cryptographically via a per-vault secret.
 
+## Network use
+
+This plugin connects to a hosted [Supabase](https://supabase.com) database to store and retrieve orbital metadata. No vault content, file names, or identifying data is transmitted — only the derived numerical parameters (orbital radius, eccentricity, body size, color index). See "What leaves your machine" above.
+
 ## Explore the galaxy
 
 [cosmos.supermagicapps.com](https://cosmos.supermagicapps.com)

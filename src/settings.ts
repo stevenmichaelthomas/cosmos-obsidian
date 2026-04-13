@@ -1,4 +1,4 @@
-import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
+import { App, Modal, PluginSettingTab, Setting, Notice } from 'obsidian';
 import { createClient } from '@supabase/supabase-js';
 import type CosmosPlugin from './main';
 import { computeOwnerHash } from './sync';
@@ -38,7 +38,7 @@ export class CosmosSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    containerEl.createEl('h2', { text: 'Cosmos Sync' });
+    new Setting(containerEl).setName('Cosmos sync').setHeading();
     containerEl.createEl('p', {
       text: 'Only orbital metadata leaves your machine. Content is never sent.',
       cls: 'setting-item-description',
@@ -67,14 +67,11 @@ export class CosmosSettingTab extends PluginSettingTab {
     }
 
     if (slugLocked) {
-      const linkEl = containerEl.createEl('div', { cls: 'setting-item-description' });
-      linkEl.style.marginTop = '-8px';
-      linkEl.style.marginBottom = '12px';
-      const a = linkEl.createEl('a', {
+      const linkEl = containerEl.createEl('div', { cls: 'cosmos-galaxy-link' });
+      linkEl.createEl('a', {
         text: `View your galaxy →`,
         href: `${COSMOS_BASE_URL}/s/${this.plugin.settings.systemSlug}`,
       });
-      a.style.fontSize = '13px';
 
       new Setting(containerEl)
         .setName('Delete system')
@@ -82,37 +79,8 @@ export class CosmosSettingTab extends PluginSettingTab {
         .addButton(btn => btn
           .setButtonText('Delete')
           .setWarning()
-          .onClick(async () => {
-            const slug = this.plugin.settings.systemSlug;
-            if (!confirm(`Delete "${slug}" and all its stars and entries? This cannot be undone.`)) return;
-            btn.setDisabled(true);
-            btn.setButtonText('Deleting...');
-            try {
-              const ownerHash = await computeOwnerHash(this.plugin.settings.systemSecret);
-              const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-              const { data, error } = await client.rpc('delete_system', {
-                p_slug: slug,
-                p_owner_secret_hash: ownerHash,
-              });
-              if (error) {
-                new Notice(`Delete failed: ${error.message}`, 8000);
-              } else if (data === true) {
-                this.plugin.settings.systemSlug = '';
-                this.plugin.settings.starName = '';
-                this.plugin.settings.passphraseHash = '';
-                this.plugin.settings.systemSecret = '';
-                await this.plugin.saveSettings();
-                new Notice(`System "${slug}" deleted. You can create a new one by syncing.`, 5000);
-                this.display(); // refresh settings UI
-              } else {
-                new Notice('Delete failed: owner secret did not match.', 8000);
-              }
-            } catch (err) {
-              const msg = err instanceof Error ? err.message : String(err);
-              new Notice(`Delete failed: ${msg}`, 8000);
-            }
-            btn.setDisabled(false);
-            btn.setButtonText('Delete');
+          .onClick(() => {
+            new ConfirmDeleteModal(this.app, this.plugin, () => this.display()).open();
           }));
     }
 
@@ -138,5 +106,64 @@ export class CosmosSettingTab extends PluginSettingTab {
           await this.plugin.saveSettings();
         }));
 
+  }
+}
+
+class ConfirmDeleteModal extends Modal {
+  plugin: CosmosPlugin;
+  onDeleted: () => void;
+
+  constructor(app: App, plugin: CosmosPlugin, onDeleted: () => void) {
+    super(app);
+    this.plugin = plugin;
+    this.onDeleted = onDeleted;
+  }
+
+  onOpen() {
+    const { contentEl } = this;
+    const slug = this.plugin.settings.systemSlug;
+
+    contentEl.createEl('h3', { text: 'Delete system' });
+    contentEl.createEl('p', {
+      text: `This will permanently delete "${slug}" and all its stars and entries. This cannot be undone.`,
+    });
+
+    const btnRow = contentEl.createDiv({ cls: 'modal-button-container' });
+    btnRow.createEl('button', { text: 'Cancel' }).addEventListener('click', () => this.close());
+
+    const deleteBtn = btnRow.createEl('button', { text: 'Delete', cls: 'mod-warning' });
+    deleteBtn.addEventListener('click', async () => {
+      deleteBtn.disabled = true;
+      deleteBtn.textContent = 'Deleting...';
+      try {
+        const ownerHash = await computeOwnerHash(this.plugin.settings.systemSecret);
+        const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const { data, error } = await client.rpc('delete_system', {
+          p_slug: slug,
+          p_owner_secret_hash: ownerHash,
+        });
+        if (error) {
+          new Notice(`Delete failed: ${error.message}`, 8000);
+        } else if (data === true) {
+          this.plugin.settings.systemSlug = '';
+          this.plugin.settings.starName = '';
+          this.plugin.settings.passphraseHash = '';
+          this.plugin.settings.systemSecret = '';
+          await this.plugin.saveSettings();
+          new Notice(`System "${slug}" deleted. You can create a new one by syncing.`, 5000);
+          this.onDeleted();
+        } else {
+          new Notice('Delete failed: owner secret did not match.', 8000);
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        new Notice(`Delete failed: ${msg}`, 8000);
+      }
+      this.close();
+    });
+  }
+
+  onClose() {
+    this.contentEl.empty();
   }
 }
