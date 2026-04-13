@@ -20112,7 +20112,7 @@ ${c.description}`;
 function orbitalRadius(bodyIndex, totalBodies) {
   const innerEdge = 1.2;
   const n = Math.max(totalBodies ?? 50, 10);
-  const spread = Math.min(2.5, 60 / (Math.sqrt(n) + 4));
+  const spread = Math.max(1.5, Math.min(2.5, 60 / (Math.sqrt(n) + 4)));
   const jitter = 0.3;
   return innerEdge + Math.sqrt(bodyIndex) * spread + Math.sin(bodyIndex * 2.39996) * jitter;
 }
@@ -20347,7 +20347,7 @@ async function syncVault(vault, settings) {
       throw new Error(`Failed to upsert star: ${starErr?.message || "unknown error"}`);
     }
     const starId = starIdData;
-    const { data: existingEntries, error: entriesErr } = await client.rpc("get_entries_public", { p_system_id: systemId });
+    const { data: existingEntries, error: entriesErr } = await client.rpc("get_entries_public", { p_system_id: systemId }).limit(1e4);
     if (entriesErr) {
       throw new Error(`Failed to load existing entries: ${entriesErr.message}`);
     }
@@ -20369,16 +20369,27 @@ async function syncVault(vault, settings) {
       parsed.push(parseFile(file, raw));
     }
     parsed.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    const enriched = [];
-    for (let idx = 0; idx < parsed.length; idx++) {
-      const entry = parsed[idx];
-      const secureSeed = await computeSecureSeed(
-        settings.systemSecret,
-        entry.date,
-        contentToString(entry.content, entry.contentType)
+    notice.setMessage(`Cosmos: Computing orbits for ${parsed.length} files...`);
+    const BATCH_SIZE = 200;
+    const enriched = new Array(parsed.length);
+    for (let batchStart = 0; batchStart < parsed.length; batchStart += BATCH_SIZE) {
+      const batchEnd = Math.min(batchStart + BATCH_SIZE, parsed.length);
+      const batch = parsed.slice(batchStart, batchEnd);
+      const seeds = await Promise.all(
+        batch.map((entry) => computeSecureSeed(
+          settings.systemSecret,
+          entry.date,
+          contentToString(entry.content, entry.contentType)
+        ))
       );
-      const meta = generateOrbital(entry.contentType, entry.content, entry.date, idx, secureSeed, parsed.length);
-      enriched.push({ entry, meta });
+      for (let j = 0; j < batch.length; j++) {
+        const idx = batchStart + j;
+        const meta = generateOrbital(batch[j].contentType, batch[j].content, batch[j].date, idx, seeds[j], parsed.length);
+        enriched[idx] = { entry: batch[j], meta };
+      }
+      if (batchStart > 0 && batchStart % 2e3 === 0) {
+        notice.setMessage(`Cosmos: Computing orbits... ${batchStart}/${parsed.length}`);
+      }
     }
     const newEntries = enriched.filter(({ meta }) => !existingEntryIds.has(meta.id));
     const skipped = enriched.length - newEntries.length;
@@ -20399,25 +20410,31 @@ async function syncVault(vault, settings) {
       return;
     }
     notice.setMessage(`Cosmos: Syncing ${newEntries.length} new entries...`);
+    const INSERT_BATCH = 20;
     let inserted = 0;
-    for (const { entry, meta } of newEntries) {
-      const storedContent = emptyContent(entry.contentType);
-      const { error } = await client.rpc("add_entry", {
-        p_system_id: systemId,
-        p_star_id: starId,
-        p_content_type: entry.contentType,
-        p_content: storedContent,
-        p_date: entry.date,
-        p_orbital_meta: meta,
-        p_owner_secret_hash: ownerHash
-      });
-      if (error) {
-        throw new Error(`add_entry failed for ${entry.filePath}: ${error.message}`);
+    for (let i = 0; i < newEntries.length; i += INSERT_BATCH) {
+      const batch = newEntries.slice(i, i + INSERT_BATCH);
+      const results = await Promise.all(
+        batch.map(({ entry, meta }) => {
+          const storedContent = emptyContent(entry.contentType);
+          return client.rpc("add_entry", {
+            p_system_id: systemId,
+            p_star_id: starId,
+            p_content_type: entry.contentType,
+            p_content: storedContent,
+            p_date: entry.date,
+            p_orbital_meta: meta,
+            p_owner_secret_hash: ownerHash
+          });
+        })
+      );
+      for (let j = 0; j < results.length; j++) {
+        if (results[j].error) {
+          throw new Error(`add_entry failed for ${batch[j].entry.filePath}: ${results[j].error.message}`);
+        }
       }
-      inserted++;
-      if (inserted % 10 === 0) {
-        notice.setMessage(`Cosmos: Synced ${inserted}/${newEntries.length}...`);
-      }
+      inserted += batch.length;
+      notice.setMessage(`Cosmos: Synced ${inserted}/${newEntries.length}...`);
     }
     notice.hide();
     const frag = document.createDocumentFragment();
