@@ -1,6 +1,6 @@
 import { Notice, Vault, TFile, parseYaml } from 'obsidian';
 import { createClient } from '@supabase/supabase-js';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from './settings';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, COSMOS_BASE_URL } from './settings';
 import type { CosmosSettings } from './settings';
 import type { ContentType, EntryContent, HaikuContent, NoteContent, BodyKind, OrbitalParams } from './types';
 import { generateOrbital, contentToString } from './engine/orbital';
@@ -302,8 +302,19 @@ export async function syncVault(vault: Vault, settings: CosmosSettings): Promise
     const skipped = enriched.length - newEntries.length;
 
     if (newEntries.length === 0) {
-      notice.setMessage(`Cosmos: Up to date (${skipped} entries already synced).`);
-      setTimeout(() => notice.hide(), 4000);
+      notice.hide();
+      const frag = document.createDocumentFragment();
+      frag.appendText(`Cosmos: Up to date (${skipped} entries synced). `);
+      const link = document.createElement('a');
+      link.href = `${COSMOS_BASE_URL}/s/${slug}`;
+      link.textContent = 'View your galaxy →';
+      link.style.cursor = 'pointer';
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        window.open(link.href, '_blank');
+      });
+      frag.appendChild(link);
+      new Notice(frag, 6000);
       return;
     }
 
@@ -331,8 +342,19 @@ export async function syncVault(vault: Vault, settings: CosmosSettings): Promise
       }
     }
 
-    notice.setMessage(`Cosmos: Synced ${inserted} new entries (${skipped} already synced).`);
-    setTimeout(() => notice.hide(), 5000);
+    notice.hide();
+    const frag = document.createDocumentFragment();
+    frag.appendText(`Cosmos: Synced ${inserted} new entries (${skipped} already synced). `);
+    const link = document.createElement('a');
+    link.href = `${COSMOS_BASE_URL}/s/${slug}`;
+    link.textContent = 'View your galaxy →';
+    link.style.cursor = 'pointer';
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      window.open(link.href, '_blank');
+    });
+    frag.appendChild(link);
+    new Notice(frag, 8000);
 
   } catch (err) {
     notice.hide();

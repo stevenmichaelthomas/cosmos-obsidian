@@ -19900,6 +19900,7 @@ var DEFAULT_SETTINGS = {
   systemSecret: "",
   systemSlug: ""
 };
+var COSMOS_BASE_URL = "https://cosmos.supermagicapps.com";
 var CosmosSettingTab = class extends import_obsidian.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
@@ -19922,6 +19923,16 @@ var CosmosSettingTab = class extends import_obsidian.PluginSettingTab {
         this.plugin.settings.systemName = value;
         await this.plugin.saveSettings();
       }));
+    }
+    if (slugLocked) {
+      const linkEl = containerEl.createEl("div", { cls: "setting-item-description" });
+      linkEl.style.marginTop = "-8px";
+      linkEl.style.marginBottom = "12px";
+      const a = linkEl.createEl("a", {
+        text: `View your galaxy \u2192`,
+        href: `${COSMOS_BASE_URL}/s/${this.plugin.settings.systemSlug}`
+      });
+      a.style.fontSize = "13px";
     }
     new import_obsidian.Setting(containerEl).setName("Star name").setDesc("Name of the star (blank = auto: Sol 1, Sol 2, ...)").addText((text) => text.setPlaceholder("Sol 1").setValue(this.plugin.settings.starName).onChange(async (value) => {
       this.plugin.settings.starName = value;
@@ -20155,7 +20166,7 @@ ${c.description}`;
 function orbitalRadius(bodyIndex, totalBodies) {
   const innerEdge = 1.2;
   const n = Math.max(totalBodies ?? 50, 10);
-  const spread = Math.min(2.5, 40 / Math.sqrt(n));
+  const spread = Math.min(2.5, 60 / (Math.sqrt(n) + 4));
   const jitter = 0.3;
   return innerEdge + Math.sqrt(bodyIndex) * spread + Math.sin(bodyIndex * 2.39996) * jitter;
 }
@@ -20427,8 +20438,19 @@ async function syncVault(vault, settings) {
     const newEntries = enriched.filter(({ meta }) => !existingEntryIds.has(meta.id));
     const skipped = enriched.length - newEntries.length;
     if (newEntries.length === 0) {
-      notice.setMessage(`Cosmos: Up to date (${skipped} entries already synced).`);
-      setTimeout(() => notice.hide(), 4e3);
+      notice.hide();
+      const frag2 = document.createDocumentFragment();
+      frag2.appendText(`Cosmos: Up to date (${skipped} entries synced). `);
+      const link2 = document.createElement("a");
+      link2.href = `${COSMOS_BASE_URL}/s/${slug}`;
+      link2.textContent = "View your galaxy \u2192";
+      link2.style.cursor = "pointer";
+      link2.addEventListener("click", (e) => {
+        e.preventDefault();
+        window.open(link2.href, "_blank");
+      });
+      frag2.appendChild(link2);
+      new import_obsidian2.Notice(frag2, 6e3);
       return;
     }
     notice.setMessage(`Cosmos: Syncing ${newEntries.length} new entries...`);
@@ -20451,8 +20473,19 @@ async function syncVault(vault, settings) {
         notice.setMessage(`Cosmos: Synced ${inserted}/${newEntries.length}...`);
       }
     }
-    notice.setMessage(`Cosmos: Synced ${inserted} new entries (${skipped} already synced).`);
-    setTimeout(() => notice.hide(), 5e3);
+    notice.hide();
+    const frag = document.createDocumentFragment();
+    frag.appendText(`Cosmos: Synced ${inserted} new entries (${skipped} already synced). `);
+    const link = document.createElement("a");
+    link.href = `${COSMOS_BASE_URL}/s/${slug}`;
+    link.textContent = "View your galaxy \u2192";
+    link.style.cursor = "pointer";
+    link.addEventListener("click", (e) => {
+      e.preventDefault();
+      window.open(link.href, "_blank");
+    });
+    frag.appendChild(link);
+    new import_obsidian2.Notice(frag, 8e3);
   } catch (err) {
     notice.hide();
     const msg = err instanceof Error ? err.message : String(err);

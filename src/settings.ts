@@ -22,6 +22,8 @@ export const DEFAULT_SETTINGS: CosmosSettings = {
   systemSlug: '',
 };
 
+export const COSMOS_BASE_URL = 'https://cosmos.supermagicapps.com';
+
 export class CosmosSettingTab extends PluginSettingTab {
   plugin: CosmosPlugin;
 
@@ -60,6 +62,17 @@ export class CosmosSettingTab extends PluginSettingTab {
             this.plugin.settings.systemName = value;
             await this.plugin.saveSettings();
           }));
+    }
+
+    if (slugLocked) {
+      const linkEl = containerEl.createEl('div', { cls: 'setting-item-description' });
+      linkEl.style.marginTop = '-8px';
+      linkEl.style.marginBottom = '12px';
+      const a = linkEl.createEl('a', {
+        text: `View your galaxy →`,
+        href: `${COSMOS_BASE_URL}/s/${this.plugin.settings.systemSlug}`,
+      });
+      a.style.fontSize = '13px';
     }
 
     new Setting(containerEl)
