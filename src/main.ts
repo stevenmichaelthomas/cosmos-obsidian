@@ -93,8 +93,11 @@ class DeleteSystemModal extends Modal {
           new Notice(`Delete failed: ${error.message}`, 8000);
         } else if (data === true) {
           this.plugin.settings.systemSlug = '';
+          this.plugin.settings.starName = '';
+          this.plugin.settings.passphraseHash = '';
+          this.plugin.settings.systemSecret = '';
           await this.plugin.saveSettings();
-          new Notice(`System "${slug}" deleted from Cosmos.`, 5000);
+          new Notice(`System "${slug}" deleted. You can create a new one by syncing.`, 5000);
         } else {
           new Notice('Delete failed: owner secret did not match.', 8000);
         }

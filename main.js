@@ -19889,64 +19889,10 @@ function shouldShowDeprecationWarning() {
 if (shouldShowDeprecationWarning()) console.warn("\u26A0\uFE0F  Node.js 18 and below are deprecated and will no longer be supported in future versions of @supabase/supabase-js. Please upgrade to Node.js 20 or later. For more information, visit: https://github.com/orgs/supabase/discussions/37217");
 
 // src/settings.ts
-var import_obsidian = require("obsidian");
-var SUPABASE_URL = "https://gzhdsgkjwxjuelsvksde.supabase.co";
-var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6aGRzZ2tqd3hqdWVsc3Zrc2RlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxNjAzNzYsImV4cCI6MjA4OTczNjM3Nn0.D1B9zbnAynYDkydGVHMSuEP-rzwHoDh5812YLUrWizg";
-var DEFAULT_SETTINGS = {
-  systemName: "",
-  syncFolder: "",
-  starName: "",
-  passphraseHash: "",
-  systemSecret: "",
-  systemSlug: ""
-};
-var COSMOS_BASE_URL = "https://cosmos.supermagicapps.com";
-var CosmosSettingTab = class extends import_obsidian.PluginSettingTab {
-  constructor(app, plugin) {
-    super(app, plugin);
-    this.plugin = plugin;
-  }
-  display() {
-    const { containerEl } = this;
-    containerEl.empty();
-    containerEl.createEl("h2", { text: "Cosmos Sync" });
-    containerEl.createEl("p", {
-      text: "Only orbital metadata leaves your machine. Content is never sent.",
-      cls: "setting-item-description"
-    });
-    const slugLocked = !!this.plugin.settings.systemSlug;
-    const systemNameSetting = new import_obsidian.Setting(containerEl).setName("System name");
-    if (slugLocked) {
-      systemNameSetting.setDesc(`Locked to slug: ${this.plugin.settings.systemSlug}`).addText((text) => text.setValue(this.plugin.settings.systemName).setDisabled(true));
-    } else {
-      systemNameSetting.setDesc("The name of your solar system in Cosmos").addText((text) => text.setPlaceholder("my-vault").setValue(this.plugin.settings.systemName).onChange(async (value) => {
-        this.plugin.settings.systemName = value;
-        await this.plugin.saveSettings();
-      }));
-    }
-    if (slugLocked) {
-      const linkEl = containerEl.createEl("div", { cls: "setting-item-description" });
-      linkEl.style.marginTop = "-8px";
-      linkEl.style.marginBottom = "12px";
-      const a = linkEl.createEl("a", {
-        text: `View your galaxy \u2192`,
-        href: `${COSMOS_BASE_URL}/s/${this.plugin.settings.systemSlug}`
-      });
-      a.style.fontSize = "13px";
-    }
-    new import_obsidian.Setting(containerEl).setName("Star name").setDesc("Name of the star (blank = auto: Sol 1, Sol 2, ...)").addText((text) => text.setPlaceholder("Sol 1").setValue(this.plugin.settings.starName).onChange(async (value) => {
-      this.plugin.settings.starName = value;
-      await this.plugin.saveSettings();
-    }));
-    new import_obsidian.Setting(containerEl).setName("Sync folder").setDesc("Folder to sync (leave blank for entire vault)").addText((text) => text.setPlaceholder("").setValue(this.plugin.settings.syncFolder).onChange(async (value) => {
-      this.plugin.settings.syncFolder = value;
-      await this.plugin.saveSettings();
-    }));
-  }
-};
+var import_obsidian2 = require("obsidian");
 
 // src/sync.ts
-var import_obsidian2 = require("obsidian");
+var import_obsidian = require("obsidian");
 
 // src/engine/hash.ts
 function fnv1a(str) {
@@ -20276,7 +20222,7 @@ function extractFrontmatter(raw) {
   const fmMatch = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
   if (!fmMatch) return { frontmatter: {}, body: raw };
   try {
-    const parsed = (0, import_obsidian2.parseYaml)(fmMatch[1]);
+    const parsed = (0, import_obsidian.parseYaml)(fmMatch[1]);
     return { frontmatter: parsed ?? {}, body: fmMatch[2] };
   } catch {
     return { frontmatter: {}, body: fmMatch[2] };
@@ -20350,10 +20296,10 @@ async function computeOwnerHash(secret) {
 }
 async function syncVault(vault, settings) {
   if (!settings.systemName) {
-    new import_obsidian2.Notice("Cosmos: Please set a system name in settings.");
+    new import_obsidian.Notice("Cosmos: Please set a system name in settings.");
     return;
   }
-  const notice = new import_obsidian2.Notice("Cosmos: Starting sync...", 0);
+  const notice = new import_obsidian.Notice("Cosmos: Starting sync...", 0);
   try {
     if (!settings.passphraseHash) {
       settings.passphraseHash = randomHash();
@@ -20450,7 +20396,7 @@ async function syncVault(vault, settings) {
         window.open(link2.href, "_blank");
       });
       frag2.appendChild(link2);
-      new import_obsidian2.Notice(frag2, 6e3);
+      new import_obsidian.Notice(frag2, 6e3);
       return;
     }
     notice.setMessage(`Cosmos: Syncing ${newEntries.length} new entries...`);
@@ -20485,14 +20431,102 @@ async function syncVault(vault, settings) {
       window.open(link.href, "_blank");
     });
     frag.appendChild(link);
-    new import_obsidian2.Notice(frag, 8e3);
+    new import_obsidian.Notice(frag, 8e3);
   } catch (err) {
     notice.hide();
     const msg = err instanceof Error ? err.message : String(err);
-    new import_obsidian2.Notice(`Cosmos sync failed: ${msg}`, 1e4);
+    new import_obsidian.Notice(`Cosmos sync failed: ${msg}`, 1e4);
     console.error("Cosmos sync error:", err);
   }
 }
+
+// src/settings.ts
+var SUPABASE_URL = "https://gzhdsgkjwxjuelsvksde.supabase.co";
+var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6aGRzZ2tqd3hqdWVsc3Zrc2RlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxNjAzNzYsImV4cCI6MjA4OTczNjM3Nn0.D1B9zbnAynYDkydGVHMSuEP-rzwHoDh5812YLUrWizg";
+var DEFAULT_SETTINGS = {
+  systemName: "",
+  syncFolder: "",
+  starName: "",
+  passphraseHash: "",
+  systemSecret: "",
+  systemSlug: ""
+};
+var COSMOS_BASE_URL = "https://cosmos.supermagicapps.com";
+var CosmosSettingTab = class extends import_obsidian2.PluginSettingTab {
+  constructor(app, plugin) {
+    super(app, plugin);
+    this.plugin = plugin;
+  }
+  display() {
+    const { containerEl } = this;
+    containerEl.empty();
+    containerEl.createEl("h2", { text: "Cosmos Sync" });
+    containerEl.createEl("p", {
+      text: "Only orbital metadata leaves your machine. Content is never sent.",
+      cls: "setting-item-description"
+    });
+    const slugLocked = !!this.plugin.settings.systemSlug;
+    const systemNameSetting = new import_obsidian2.Setting(containerEl).setName("System name");
+    if (slugLocked) {
+      systemNameSetting.setDesc(`Locked to slug: ${this.plugin.settings.systemSlug}`).addText((text) => text.setValue(this.plugin.settings.systemName).setDisabled(true));
+    } else {
+      systemNameSetting.setDesc("The name of your solar system in Cosmos").addText((text) => text.setPlaceholder("my-vault").setValue(this.plugin.settings.systemName).onChange(async (value) => {
+        this.plugin.settings.systemName = value;
+        await this.plugin.saveSettings();
+      }));
+    }
+    if (slugLocked) {
+      const linkEl = containerEl.createEl("div", { cls: "setting-item-description" });
+      linkEl.style.marginTop = "-8px";
+      linkEl.style.marginBottom = "12px";
+      const a = linkEl.createEl("a", {
+        text: `View your galaxy \u2192`,
+        href: `${COSMOS_BASE_URL}/s/${this.plugin.settings.systemSlug}`
+      });
+      a.style.fontSize = "13px";
+      new import_obsidian2.Setting(containerEl).setName("Delete system").setDesc("Permanently delete this solar system from Cosmos").addButton((btn) => btn.setButtonText("Delete").setWarning().onClick(async () => {
+        const slug = this.plugin.settings.systemSlug;
+        if (!confirm(`Delete "${slug}" and all its stars and entries? This cannot be undone.`)) return;
+        btn.setDisabled(true);
+        btn.setButtonText("Deleting...");
+        try {
+          const ownerHash = await computeOwnerHash(this.plugin.settings.systemSecret);
+          const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+          const { data, error } = await client.rpc("delete_system", {
+            p_slug: slug,
+            p_owner_secret_hash: ownerHash
+          });
+          if (error) {
+            new import_obsidian2.Notice(`Delete failed: ${error.message}`, 8e3);
+          } else if (data === true) {
+            this.plugin.settings.systemSlug = "";
+            this.plugin.settings.starName = "";
+            this.plugin.settings.passphraseHash = "";
+            this.plugin.settings.systemSecret = "";
+            await this.plugin.saveSettings();
+            new import_obsidian2.Notice(`System "${slug}" deleted. You can create a new one by syncing.`, 5e3);
+            this.display();
+          } else {
+            new import_obsidian2.Notice("Delete failed: owner secret did not match.", 8e3);
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          new import_obsidian2.Notice(`Delete failed: ${msg}`, 8e3);
+        }
+        btn.setDisabled(false);
+        btn.setButtonText("Delete");
+      }));
+    }
+    new import_obsidian2.Setting(containerEl).setName("Star name").setDesc("Name of the star (blank = auto: Sol 1, Sol 2, ...)").addText((text) => text.setPlaceholder("Sol 1").setValue(this.plugin.settings.starName).onChange(async (value) => {
+      this.plugin.settings.starName = value;
+      await this.plugin.saveSettings();
+    }));
+    new import_obsidian2.Setting(containerEl).setName("Sync folder").setDesc("Folder to sync (leave blank for entire vault)").addText((text) => text.setPlaceholder("").setValue(this.plugin.settings.syncFolder).onChange(async (value) => {
+      this.plugin.settings.syncFolder = value;
+      await this.plugin.saveSettings();
+    }));
+  }
+};
 
 // src/main.ts
 var CosmosPlugin = class extends import_obsidian3.Plugin {
@@ -20565,8 +20599,11 @@ var DeleteSystemModal = class extends import_obsidian3.Modal {
           new import_obsidian3.Notice(`Delete failed: ${error.message}`, 8e3);
         } else if (data === true) {
           this.plugin.settings.systemSlug = "";
+          this.plugin.settings.starName = "";
+          this.plugin.settings.passphraseHash = "";
+          this.plugin.settings.systemSecret = "";
           await this.plugin.saveSettings();
-          new import_obsidian3.Notice(`System "${slug}" deleted from Cosmos.`, 5e3);
+          new import_obsidian3.Notice(`System "${slug}" deleted. You can create a new one by syncing.`, 5e3);
         } else {
           new import_obsidian3.Notice("Delete failed: owner secret did not match.", 8e3);
         }

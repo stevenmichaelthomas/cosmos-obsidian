@@ -1,5 +1,7 @@
-import { App, PluginSettingTab, Setting } from 'obsidian';
+import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
+import { createClient } from '@supabase/supabase-js';
 import type CosmosPlugin from './main';
+import { computeOwnerHash } from './sync';
 
 export const SUPABASE_URL = 'https://gzhdsgkjwxjuelsvksde.supabase.co';
 export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6aGRzZ2tqd3hqdWVsc3Zrc2RlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxNjAzNzYsImV4cCI6MjA4OTczNjM3Nn0.D1B9zbnAynYDkydGVHMSuEP-rzwHoDh5812YLUrWizg';
@@ -73,6 +75,45 @@ export class CosmosSettingTab extends PluginSettingTab {
         href: `${COSMOS_BASE_URL}/s/${this.plugin.settings.systemSlug}`,
       });
       a.style.fontSize = '13px';
+
+      new Setting(containerEl)
+        .setName('Delete system')
+        .setDesc('Permanently delete this solar system from Cosmos')
+        .addButton(btn => btn
+          .setButtonText('Delete')
+          .setWarning()
+          .onClick(async () => {
+            const slug = this.plugin.settings.systemSlug;
+            if (!confirm(`Delete "${slug}" and all its stars and entries? This cannot be undone.`)) return;
+            btn.setDisabled(true);
+            btn.setButtonText('Deleting...');
+            try {
+              const ownerHash = await computeOwnerHash(this.plugin.settings.systemSecret);
+              const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+              const { data, error } = await client.rpc('delete_system', {
+                p_slug: slug,
+                p_owner_secret_hash: ownerHash,
+              });
+              if (error) {
+                new Notice(`Delete failed: ${error.message}`, 8000);
+              } else if (data === true) {
+                this.plugin.settings.systemSlug = '';
+                this.plugin.settings.starName = '';
+                this.plugin.settings.passphraseHash = '';
+                this.plugin.settings.systemSecret = '';
+                await this.plugin.saveSettings();
+                new Notice(`System "${slug}" deleted. You can create a new one by syncing.`, 5000);
+                this.display(); // refresh settings UI
+              } else {
+                new Notice('Delete failed: owner secret did not match.', 8000);
+              }
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : String(err);
+              new Notice(`Delete failed: ${msg}`, 8000);
+            }
+            btn.setDisabled(false);
+            btn.setButtonText('Delete');
+          }));
     }
 
     new Setting(containerEl)
