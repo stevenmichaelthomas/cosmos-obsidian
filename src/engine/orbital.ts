@@ -159,7 +159,7 @@ export function contentToString(content: EntryContent, contentType: ContentType)
 function orbitalRadius(bodyIndex: number, totalBodies?: number): number {
   const innerEdge = 1.2;
   const n = Math.max(totalBodies ?? 50, 10);
-  const spread = Math.min(2.5, 40 / Math.sqrt(n));
+  const spread = Math.min(2.5, 60 / (Math.sqrt(n) + 4));
   const jitter = 0.3;
   return innerEdge + Math.sqrt(bodyIndex) * spread +
     Math.sin(bodyIndex * 2.39996) * jitter;
