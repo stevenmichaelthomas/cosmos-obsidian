@@ -203,10 +203,12 @@ export async function syncVault(vault: Vault, settings: CosmosSettings): Promise
       systemId = existing.id;
     } else {
       notice.setMessage('Cosmos: Creating solar system...');
+      const ownerHash = await computeOwnerHash(settings.systemSecret);
       const { data: newId, error } = await client.rpc('create_solar_system', {
         p_name: settings.systemName,
         p_slug: slug,
         p_passphrase_hash: settings.passphraseHash,
+        p_owner_secret_hash: ownerHash,
       });
       if (error || !newId) {
         throw new Error(`Failed to create system: ${error?.message || 'unknown error'}`);
@@ -219,12 +221,7 @@ export async function syncVault(vault: Vault, settings: CosmosSettings): Promise
       settings.systemSlug = slug;
     }
 
-    // ── Claim ownership (one-time, sets owner_secret_hash if NULL) ──
     const ownerHash = await computeOwnerHash(settings.systemSecret);
-    await client.rpc('update_system_owner', {
-      p_system_id: systemId,
-      p_owner_secret_hash: ownerHash,
-    });
 
     // ── Upsert star ───────────────────────────────────────────
 
@@ -243,6 +240,7 @@ export async function syncVault(vault: Vault, settings: CosmosSettings): Promise
       p_system_id: systemId,
       p_name: starName,
       p_position: 0,
+      p_owner_secret_hash: ownerHash,
     });
     if (starErr || !starIdData) {
       throw new Error(`Failed to upsert star: ${starErr?.message || 'unknown error'}`);
@@ -332,6 +330,7 @@ export async function syncVault(vault: Vault, settings: CosmosSettings): Promise
         p_content: storedContent,
         p_date: entry.date,
         p_orbital_meta: meta,
+        p_owner_secret_hash: ownerHash,
       });
       if (error) {
         throw new Error(`add_entry failed for ${entry.filePath}: ${error.message}`);

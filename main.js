@@ -20315,10 +20315,12 @@ async function syncVault(vault, settings) {
       systemId = existing.id;
     } else {
       notice.setMessage("Cosmos: Creating solar system...");
+      const ownerHash2 = await computeOwnerHash(settings.systemSecret);
       const { data: newId, error } = await client.rpc("create_solar_system", {
         p_name: settings.systemName,
         p_slug: slug,
-        p_passphrase_hash: settings.passphraseHash
+        p_passphrase_hash: settings.passphraseHash,
+        p_owner_secret_hash: ownerHash2
       });
       if (error || !newId) {
         throw new Error(`Failed to create system: ${error?.message || "unknown error"}`);
@@ -20329,10 +20331,6 @@ async function syncVault(vault, settings) {
       settings.systemSlug = slug;
     }
     const ownerHash = await computeOwnerHash(settings.systemSecret);
-    await client.rpc("update_system_owner", {
-      p_system_id: systemId,
-      p_owner_secret_hash: ownerHash
-    });
     let starName = settings.starName;
     if (!starName) {
       const { count } = await client.from("stars").select("id", { count: "exact", head: true }).eq("system_id", systemId);
@@ -20342,7 +20340,8 @@ async function syncVault(vault, settings) {
     const { data: starIdData, error: starErr } = await client.rpc("upsert_star", {
       p_system_id: systemId,
       p_name: starName,
-      p_position: 0
+      p_position: 0,
+      p_owner_secret_hash: ownerHash
     });
     if (starErr || !starIdData) {
       throw new Error(`Failed to upsert star: ${starErr?.message || "unknown error"}`);
@@ -20409,7 +20408,8 @@ async function syncVault(vault, settings) {
         p_content_type: entry.contentType,
         p_content: storedContent,
         p_date: entry.date,
-        p_orbital_meta: meta
+        p_orbital_meta: meta,
+        p_owner_secret_hash: ownerHash
       });
       if (error) {
         throw new Error(`add_entry failed for ${entry.filePath}: ${error.message}`);
