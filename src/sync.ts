@@ -250,7 +250,7 @@ export async function syncVault(vault: Vault, settings: CosmosSettings): Promise
     // ── Fetch existing entry IDs ──────────────────────────────
 
     const { data: existingEntries, error: entriesErr } = await client
-      .rpc('get_entries_public', { p_system_id: systemId });
+      .rpc('get_entries_public', { p_system_id: systemId }).limit(10000);
     if (entriesErr) {
       throw new Error(`Failed to load existing entries: ${entriesErr.message}`);
     }
