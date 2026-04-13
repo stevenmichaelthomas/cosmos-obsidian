@@ -25,48 +25,6 @@ __export(main_exports, {
 module.exports = __toCommonJS(main_exports);
 var import_obsidian3 = require("obsidian");
 
-// src/settings.ts
-var import_obsidian = require("obsidian");
-var SUPABASE_URL = "https://gzhdsgkjwxjuelsvksde.supabase.co";
-var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6aGRzZ2tqd3hqdWVsc3Zrc2RlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxNjAzNzYsImV4cCI6MjA4OTczNjM3Nn0.D1B9zbnAynYDkydGVHMSuEP-rzwHoDh5812YLUrWizg";
-var DEFAULT_SETTINGS = {
-  systemName: "",
-  syncFolder: "",
-  starName: "",
-  passphraseHash: "",
-  systemSecret: ""
-};
-var CosmosSettingTab = class extends import_obsidian.PluginSettingTab {
-  constructor(app, plugin) {
-    super(app, plugin);
-    this.plugin = plugin;
-  }
-  display() {
-    const { containerEl } = this;
-    containerEl.empty();
-    containerEl.createEl("h2", { text: "Cosmos Sync" });
-    containerEl.createEl("p", {
-      text: "Only orbital metadata leaves your machine. Content is never sent.",
-      cls: "setting-item-description"
-    });
-    new import_obsidian.Setting(containerEl).setName("System name").setDesc("The name of your solar system in Cosmos").addText((text) => text.setPlaceholder("my-vault").setValue(this.plugin.settings.systemName).onChange(async (value) => {
-      this.plugin.settings.systemName = value;
-      await this.plugin.saveSettings();
-    }));
-    new import_obsidian.Setting(containerEl).setName("Star name").setDesc("Name of the star (blank = auto: Sol 1, Sol 2, ...)").addText((text) => text.setPlaceholder("Sol 1").setValue(this.plugin.settings.starName).onChange(async (value) => {
-      this.plugin.settings.starName = value;
-      await this.plugin.saveSettings();
-    }));
-    new import_obsidian.Setting(containerEl).setName("Sync folder").setDesc("Folder to sync (leave blank for entire vault)").addText((text) => text.setPlaceholder("").setValue(this.plugin.settings.syncFolder).onChange(async (value) => {
-      this.plugin.settings.syncFolder = value;
-      await this.plugin.saveSettings();
-    }));
-  }
-};
-
-// src/sync.ts
-var import_obsidian2 = require("obsidian");
-
 // node_modules/tslib/tslib.es6.mjs
 function __rest(s, e) {
   var t = {};
@@ -19930,6 +19888,55 @@ function shouldShowDeprecationWarning() {
 }
 if (shouldShowDeprecationWarning()) console.warn("\u26A0\uFE0F  Node.js 18 and below are deprecated and will no longer be supported in future versions of @supabase/supabase-js. Please upgrade to Node.js 20 or later. For more information, visit: https://github.com/orgs/supabase/discussions/37217");
 
+// src/settings.ts
+var import_obsidian = require("obsidian");
+var SUPABASE_URL = "https://gzhdsgkjwxjuelsvksde.supabase.co";
+var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6aGRzZ2tqd3hqdWVsc3Zrc2RlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxNjAzNzYsImV4cCI6MjA4OTczNjM3Nn0.D1B9zbnAynYDkydGVHMSuEP-rzwHoDh5812YLUrWizg";
+var DEFAULT_SETTINGS = {
+  systemName: "",
+  syncFolder: "",
+  starName: "",
+  passphraseHash: "",
+  systemSecret: "",
+  systemSlug: ""
+};
+var CosmosSettingTab = class extends import_obsidian.PluginSettingTab {
+  constructor(app, plugin) {
+    super(app, plugin);
+    this.plugin = plugin;
+  }
+  display() {
+    const { containerEl } = this;
+    containerEl.empty();
+    containerEl.createEl("h2", { text: "Cosmos Sync" });
+    containerEl.createEl("p", {
+      text: "Only orbital metadata leaves your machine. Content is never sent.",
+      cls: "setting-item-description"
+    });
+    const slugLocked = !!this.plugin.settings.systemSlug;
+    const systemNameSetting = new import_obsidian.Setting(containerEl).setName("System name");
+    if (slugLocked) {
+      systemNameSetting.setDesc(`Locked to slug: ${this.plugin.settings.systemSlug}`).addText((text) => text.setValue(this.plugin.settings.systemName).setDisabled(true));
+    } else {
+      systemNameSetting.setDesc("The name of your solar system in Cosmos").addText((text) => text.setPlaceholder("my-vault").setValue(this.plugin.settings.systemName).onChange(async (value) => {
+        this.plugin.settings.systemName = value;
+        await this.plugin.saveSettings();
+      }));
+    }
+    new import_obsidian.Setting(containerEl).setName("Star name").setDesc("Name of the star (blank = auto: Sol 1, Sol 2, ...)").addText((text) => text.setPlaceholder("Sol 1").setValue(this.plugin.settings.starName).onChange(async (value) => {
+      this.plugin.settings.starName = value;
+      await this.plugin.saveSettings();
+    }));
+    new import_obsidian.Setting(containerEl).setName("Sync folder").setDesc("Folder to sync (leave blank for entire vault)").addText((text) => text.setPlaceholder("").setValue(this.plugin.settings.syncFolder).onChange(async (value) => {
+      this.plugin.settings.syncFolder = value;
+      await this.plugin.saveSettings();
+    }));
+  }
+};
+
+// src/sync.ts
+var import_obsidian2 = require("obsidian");
+
 // src/engine/hash.ts
 function fnv1a(str) {
   let h = 2166136261;
@@ -20325,6 +20332,11 @@ function isExcluded(path) {
   const parts = path.split("/");
   return parts.some((p) => EXCLUDED_DIRS.has(p) || p.startsWith("."));
 }
+async function computeOwnerHash(secret) {
+  const enc = new TextEncoder();
+  const buf = await crypto.subtle.digest("SHA-256", enc.encode(secret));
+  return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");
+}
 async function syncVault(vault, settings) {
   if (!settings.systemName) {
     new import_obsidian2.Notice("Cosmos: Please set a system name in settings.");
@@ -20339,7 +20351,7 @@ async function syncVault(vault, settings) {
       settings.systemSecret = randomHash();
     }
     const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    const slug = slugify(settings.systemName);
+    const slug = settings.systemSlug || slugify(settings.systemName);
     const { data: existing } = await client.from("solar_systems").select("id").eq("slug", slug).maybeSingle();
     let systemId;
     if (existing) {
@@ -20356,6 +20368,14 @@ async function syncVault(vault, settings) {
       }
       systemId = newId;
     }
+    if (!settings.systemSlug) {
+      settings.systemSlug = slug;
+    }
+    const ownerHash = await computeOwnerHash(settings.systemSecret);
+    await client.rpc("update_system_owner", {
+      p_system_id: systemId,
+      p_owner_secret_hash: ownerHash
+    });
     let starName = settings.starName;
     if (!starName) {
       const { count } = await client.from("stars").select("id", { count: "exact", head: true }).eq("system_id", systemId);
@@ -20458,6 +20478,13 @@ var CosmosPlugin = class extends import_obsidian3.Plugin {
         await this.saveSettings();
       }
     });
+    this.addCommand({
+      id: "delete-system",
+      name: "Delete system from Cosmos",
+      callback: () => {
+        new DeleteSystemModal(this.app, this).open();
+      }
+    });
     this.addRibbonIcon("orbit", "Sync vault to Cosmos", async () => {
       await syncVault(this.app.vault, this.settings);
       await this.saveSettings();
@@ -20470,5 +20497,54 @@ var CosmosPlugin = class extends import_obsidian3.Plugin {
   }
   async saveSettings() {
     await this.saveData(this.settings);
+  }
+};
+var DeleteSystemModal = class extends import_obsidian3.Modal {
+  constructor(app, plugin) {
+    super(app);
+    this.plugin = plugin;
+  }
+  onOpen() {
+    const { contentEl } = this;
+    const slug = this.plugin.settings.systemSlug;
+    if (!slug) {
+      contentEl.createEl("p", { text: "No system has been synced yet. Nothing to delete." });
+      return;
+    }
+    contentEl.createEl("h3", { text: "Delete system from Cosmos" });
+    contentEl.createEl("p", {
+      text: `This will permanently delete the solar system "${slug}" and all its stars and entries. This cannot be undone.`
+    });
+    const btnRow = contentEl.createDiv({ cls: "modal-button-container" });
+    btnRow.createEl("button", { text: "Cancel" }).addEventListener("click", () => this.close());
+    const deleteBtn = btnRow.createEl("button", { text: "Delete", cls: "mod-warning" });
+    deleteBtn.addEventListener("click", async () => {
+      deleteBtn.disabled = true;
+      deleteBtn.textContent = "Deleting...";
+      try {
+        const ownerHash = await computeOwnerHash(this.plugin.settings.systemSecret);
+        const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const { data, error } = await client.rpc("delete_system", {
+          p_slug: slug,
+          p_owner_secret_hash: ownerHash
+        });
+        if (error) {
+          new import_obsidian3.Notice(`Delete failed: ${error.message}`, 8e3);
+        } else if (data === true) {
+          this.plugin.settings.systemSlug = "";
+          await this.plugin.saveSettings();
+          new import_obsidian3.Notice(`System "${slug}" deleted from Cosmos.`, 5e3);
+        } else {
+          new import_obsidian3.Notice("Delete failed: owner secret did not match.", 8e3);
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        new import_obsidian3.Notice(`Delete failed: ${msg}`, 8e3);
+      }
+      this.close();
+    });
+  }
+  onClose() {
+    this.contentEl.empty();
   }
 };

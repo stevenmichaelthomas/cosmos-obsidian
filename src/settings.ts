@@ -10,6 +10,7 @@ export interface CosmosSettings {
   starName: string;     // default: 'default'
   passphraseHash: string; // auto-generated, meaningless (no content is sent)
   systemSecret: string; // per-system secret for keyed SHA-256 orbital hashing (auto-generated)
+  systemSlug: string;   // persisted after first sync — prevents rename from creating a new system
 }
 
 export const DEFAULT_SETTINGS: CosmosSettings = {
@@ -18,6 +19,7 @@ export const DEFAULT_SETTINGS: CosmosSettings = {
   starName: '',
   passphraseHash: '',
   systemSecret: '',
+  systemSlug: '',
 };
 
 export class CosmosSettingTab extends PluginSettingTab {
@@ -38,16 +40,27 @@ export class CosmosSettingTab extends PluginSettingTab {
       cls: 'setting-item-description',
     });
 
-    new Setting(containerEl)
-      .setName('System name')
-      .setDesc('The name of your solar system in Cosmos')
-      .addText(text => text
-        .setPlaceholder('my-vault')
-        .setValue(this.plugin.settings.systemName)
-        .onChange(async (value) => {
-          this.plugin.settings.systemName = value;
-          await this.plugin.saveSettings();
-        }));
+    const slugLocked = !!this.plugin.settings.systemSlug;
+    const systemNameSetting = new Setting(containerEl)
+      .setName('System name');
+
+    if (slugLocked) {
+      systemNameSetting
+        .setDesc(`Locked to slug: ${this.plugin.settings.systemSlug}`)
+        .addText(text => text
+          .setValue(this.plugin.settings.systemName)
+          .setDisabled(true));
+    } else {
+      systemNameSetting
+        .setDesc('The name of your solar system in Cosmos')
+        .addText(text => text
+          .setPlaceholder('my-vault')
+          .setValue(this.plugin.settings.systemName)
+          .onChange(async (value) => {
+            this.plugin.settings.systemName = value;
+            await this.plugin.saveSettings();
+          }));
+    }
 
     new Setting(containerEl)
       .setName('Star name')

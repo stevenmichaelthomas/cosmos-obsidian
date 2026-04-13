@@ -154,6 +154,15 @@ function isExcluded(path: string): boolean {
   return parts.some(p => EXCLUDED_DIRS.has(p) || p.startsWith('.'));
 }
 
+// ── Owner hash ──────────────────────────────────────────────────
+
+/** SHA-256 hex digest of the system secret — used as owner_secret_hash */
+export async function computeOwnerHash(secret: string): Promise<string> {
+  const enc = new TextEncoder();
+  const buf = await crypto.subtle.digest('SHA-256', enc.encode(secret));
+  return Array.from(new Uint8Array(buf), b => b.toString(16).padStart(2, '0')).join('');
+}
+
 // ── Main sync ───────────────────────────────────────────────────
 
 export async function syncVault(vault: Vault, settings: CosmosSettings): Promise<void> {
@@ -176,7 +185,9 @@ export async function syncVault(vault: Vault, settings: CosmosSettings): Promise
     }
 
     const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    const slug = slugify(settings.systemName);
+
+    // Use persisted slug if available; otherwise derive from name
+    const slug = settings.systemSlug || slugify(settings.systemName);
 
     // ── Get or create system ──────────────────────────────────
 
@@ -202,6 +213,18 @@ export async function syncVault(vault: Vault, settings: CosmosSettings): Promise
       }
       systemId = newId as string;
     }
+
+    // Persist slug so renames don't create a new system
+    if (!settings.systemSlug) {
+      settings.systemSlug = slug;
+    }
+
+    // ── Claim ownership (one-time, sets owner_secret_hash if NULL) ──
+    const ownerHash = await computeOwnerHash(settings.systemSecret);
+    await client.rpc('update_system_owner', {
+      p_system_id: systemId,
+      p_owner_secret_hash: ownerHash,
+    });
 
     // ── Upsert star ───────────────────────────────────────────
 
