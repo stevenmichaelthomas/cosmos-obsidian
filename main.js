@@ -20376,7 +20376,7 @@ async function syncVault(vault, settings) {
       parsed.push(parseFile(file, raw));
     }
     parsed.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    notice.setMessage(`Cosmos: Computing orbits for ${parsed.length} files...`);
+    notice.setMessage(`Cosmos: computing orbits for ${parsed.length} files...`);
     const BATCH_SIZE = 200;
     const enriched = new Array(parsed.length);
     for (let batchStart = 0; batchStart < parsed.length; batchStart += BATCH_SIZE) {
@@ -20395,7 +20395,7 @@ async function syncVault(vault, settings) {
         enriched[idx] = { entry: batch[j], meta };
       }
       if (batchStart > 0 && batchStart % 2e3 === 0) {
-        notice.setMessage(`Cosmos: Computing orbits... ${batchStart}/${parsed.length}`);
+        notice.setMessage(`Cosmos: computing orbits... ${batchStart}/${parsed.length}`);
       }
     }
     const newEntries = enriched.filter(({ meta }) => !existingEntryIds.has(meta.id));
@@ -20416,7 +20416,7 @@ async function syncVault(vault, settings) {
       new import_obsidian.Notice(frag2, 6e3);
       return;
     }
-    notice.setMessage(`Cosmos: Syncing ${newEntries.length} new entries...`);
+    notice.setMessage(`Cosmos: syncing ${newEntries.length} new entries...`);
     const INSERT_BATCH = 20;
     let inserted = 0;
     for (let i = 0; i < newEntries.length; i += INSERT_BATCH) {
@@ -20441,7 +20441,7 @@ async function syncVault(vault, settings) {
         }
       }
       inserted += batch.length;
-      notice.setMessage(`Cosmos: Synced ${inserted}/${newEntries.length}...`);
+      notice.setMessage(`Cosmos: synced ${inserted}/${newEntries.length}...`);
     }
     notice.hide();
     const frag = document.createDocumentFragment();
@@ -20494,7 +20494,7 @@ var CosmosSettingTab = class extends import_obsidian2.PluginSettingTab {
     if (slugLocked) {
       systemNameSetting.setDesc(`Locked to slug: ${this.plugin.settings.systemSlug}`).addText((text) => text.setValue(this.plugin.settings.systemName).setDisabled(true));
     } else {
-      systemNameSetting.setDesc("The name of your solar system in Cosmos").addText((text) => text.setPlaceholder("my-vault").setValue(this.plugin.settings.systemName).onChange(async (value) => {
+      systemNameSetting.setDesc("The name of your solar system").addText((text) => text.setPlaceholder("my-vault").setValue(this.plugin.settings.systemName).onChange(async (value) => {
         this.plugin.settings.systemName = value;
         await this.plugin.saveSettings();
       }));
@@ -20505,11 +20505,11 @@ var CosmosSettingTab = class extends import_obsidian2.PluginSettingTab {
         text: `View your galaxy \u2192`,
         href: `${COSMOS_BASE_URL}/s/${this.plugin.settings.systemSlug}`
       });
-      new import_obsidian2.Setting(containerEl).setName("Delete system").setDesc("Permanently delete this solar system from Cosmos").addButton((btn) => btn.setButtonText("Delete").setWarning().onClick(() => {
+      new import_obsidian2.Setting(containerEl).setName("Delete system").setDesc("Permanently delete this solar system").addButton((btn) => btn.setButtonText("Delete").setWarning().onClick(() => {
         new ConfirmDeleteModal(this.app, this.plugin, () => this.display()).open();
       }));
     }
-    new import_obsidian2.Setting(containerEl).setName("Star name").setDesc("Name of the star (blank = auto: Sol 1, Sol 2, ...)").addText((text) => text.setPlaceholder("Sol 1").setValue(this.plugin.settings.starName).onChange(async (value) => {
+    new import_obsidian2.Setting(containerEl).setName("Star name").setDesc("Name of the star (leave blank to auto-assign)").addText((text) => text.setPlaceholder("Sol 1").setValue(this.plugin.settings.starName).onChange(async (value) => {
       this.plugin.settings.starName = value;
       await this.plugin.saveSettings();
     }));
@@ -20535,35 +20535,36 @@ var ConfirmDeleteModal = class extends import_obsidian2.Modal {
     const btnRow = contentEl.createDiv({ cls: "modal-button-container" });
     btnRow.createEl("button", { text: "Cancel" }).addEventListener("click", () => this.close());
     const deleteBtn = btnRow.createEl("button", { text: "Delete", cls: "mod-warning" });
-    deleteBtn.addEventListener("click", async () => {
-      deleteBtn.disabled = true;
-      deleteBtn.textContent = "Deleting...";
-      try {
-        const ownerHash = await computeOwnerHash(this.plugin.settings.systemSecret);
-        const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        const { data, error } = await client.rpc("delete_system", {
-          p_slug: slug,
-          p_owner_secret_hash: ownerHash
-        });
-        if (error) {
-          new import_obsidian2.Notice(`Delete failed: ${error.message}`, 8e3);
-        } else if (data === true) {
-          this.plugin.settings.systemSlug = "";
-          this.plugin.settings.starName = "";
-          this.plugin.settings.passphraseHash = "";
-          this.plugin.settings.systemSecret = "";
-          await this.plugin.saveSettings();
-          new import_obsidian2.Notice(`System "${slug}" deleted. You can create a new one by syncing.`, 5e3);
-          this.onDeleted();
-        } else {
-          new import_obsidian2.Notice("Delete failed: owner secret did not match.", 8e3);
-        }
-      } catch (err) {
+    deleteBtn.addEventListener("click", () => {
+      this.handleDelete(slug, deleteBtn).catch((err) => {
         const msg = err instanceof Error ? err.message : String(err);
         new import_obsidian2.Notice(`Delete failed: ${msg}`, 8e3);
-      }
-      this.close();
+      });
     });
+  }
+  async handleDelete(slug, deleteBtn) {
+    deleteBtn.disabled = true;
+    deleteBtn.textContent = "Deleting...";
+    const ownerHash = await computeOwnerHash(this.plugin.settings.systemSecret);
+    const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const { data, error } = await client.rpc("delete_system", {
+      p_slug: slug,
+      p_owner_secret_hash: ownerHash
+    });
+    if (error) {
+      new import_obsidian2.Notice(`Delete failed: ${error.message}`, 8e3);
+    } else if (data === true) {
+      this.plugin.settings.systemSlug = "";
+      this.plugin.settings.starName = "";
+      this.plugin.settings.passphraseHash = "";
+      this.plugin.settings.systemSecret = "";
+      await this.plugin.saveSettings();
+      new import_obsidian2.Notice(`System "${slug}" deleted. You can create a new one by syncing.`, 5e3);
+      this.onDeleted();
+    } else {
+      new import_obsidian2.Notice("Delete failed: owner secret did not match.", 8e3);
+    }
+    this.close();
   }
   onClose() {
     this.contentEl.empty();

@@ -290,7 +290,7 @@ export async function syncVault(vault: Vault, settings: CosmosSettings): Promise
     // Sort by date for stable body indices
     parsed.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    notice.setMessage(`Cosmos: Computing orbits for ${parsed.length} files...`);
+    notice.setMessage(`Cosmos: computing orbits for ${parsed.length} files...`);
 
     // Generate orbital metadata in parallel batches
     const BATCH_SIZE = 200;
@@ -311,7 +311,7 @@ export async function syncVault(vault: Vault, settings: CosmosSettings): Promise
         enriched[idx] = { entry: batch[j], meta };
       }
       if (batchStart > 0 && batchStart % 2000 === 0) {
-        notice.setMessage(`Cosmos: Computing orbits... ${batchStart}/${parsed.length}`);
+        notice.setMessage(`Cosmos: computing orbits... ${batchStart}/${parsed.length}`);
       }
     }
 
@@ -338,7 +338,7 @@ export async function syncVault(vault: Vault, settings: CosmosSettings): Promise
 
     // ── Insert new entries ────────────────────────────────────
 
-    notice.setMessage(`Cosmos: Syncing ${newEntries.length} new entries...`);
+    notice.setMessage(`Cosmos: syncing ${newEntries.length} new entries...`);
 
     // Insert in parallel batches for performance
     const INSERT_BATCH = 20;
@@ -365,7 +365,7 @@ export async function syncVault(vault: Vault, settings: CosmosSettings): Promise
         }
       }
       inserted += batch.length;
-      notice.setMessage(`Cosmos: Synced ${inserted}/${newEntries.length}...`);
+      notice.setMessage(`Cosmos: synced ${inserted}/${newEntries.length}...`);
     }
 
     notice.hide();

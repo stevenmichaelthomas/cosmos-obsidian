@@ -56,7 +56,7 @@ export class CosmosSettingTab extends PluginSettingTab {
           .setDisabled(true));
     } else {
       systemNameSetting
-        .setDesc('The name of your solar system in Cosmos')
+        .setDesc('The name of your solar system')
         .addText(text => text
           .setPlaceholder('my-vault')
           .setValue(this.plugin.settings.systemName)
@@ -75,7 +75,7 @@ export class CosmosSettingTab extends PluginSettingTab {
 
       new Setting(containerEl)
         .setName('Delete system')
-        .setDesc('Permanently delete this solar system from Cosmos')
+        .setDesc('Permanently delete this solar system')
         .addButton(btn => btn
           .setButtonText('Delete')
           .setWarning()
@@ -86,7 +86,7 @@ export class CosmosSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('Star name')
-      .setDesc('Name of the star (blank = auto: Sol 1, Sol 2, ...)')
+      .setDesc('Name of the star (leave blank to auto-assign)')
       .addText(text => text
         .setPlaceholder('Sol 1')
         .setValue(this.plugin.settings.starName)
@@ -132,35 +132,40 @@ class ConfirmDeleteModal extends Modal {
     btnRow.createEl('button', { text: 'Cancel' }).addEventListener('click', () => this.close());
 
     const deleteBtn = btnRow.createEl('button', { text: 'Delete', cls: 'mod-warning' });
-    deleteBtn.addEventListener('click', async () => {
-      deleteBtn.disabled = true;
-      deleteBtn.textContent = 'Deleting...';
-      try {
-        const ownerHash = await computeOwnerHash(this.plugin.settings.systemSecret);
-        const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        const { data, error } = await client.rpc('delete_system', {
-          p_slug: slug,
-          p_owner_secret_hash: ownerHash,
-        });
-        if (error) {
-          new Notice(`Delete failed: ${error.message}`, 8000);
-        } else if (data === true) {
-          this.plugin.settings.systemSlug = '';
-          this.plugin.settings.starName = '';
-          this.plugin.settings.passphraseHash = '';
-          this.plugin.settings.systemSecret = '';
-          await this.plugin.saveSettings();
-          new Notice(`System "${slug}" deleted. You can create a new one by syncing.`, 5000);
-          this.onDeleted();
-        } else {
-          new Notice('Delete failed: owner secret did not match.', 8000);
-        }
-      } catch (err) {
+    deleteBtn.addEventListener('click', () => {
+      this.handleDelete(slug, deleteBtn).catch(err => {
         const msg = err instanceof Error ? err.message : String(err);
         new Notice(`Delete failed: ${msg}`, 8000);
-      }
-      this.close();
+      });
     });
+  }
+
+  async handleDelete(slug: string, deleteBtn: HTMLButtonElement) {
+    deleteBtn.disabled = true;
+    deleteBtn.textContent = 'Deleting...';
+
+    const ownerHash = await computeOwnerHash(this.plugin.settings.systemSecret);
+    const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const { data, error } = await client.rpc('delete_system', {
+      p_slug: slug,
+      p_owner_secret_hash: ownerHash,
+    });
+
+    if (error) {
+      new Notice(`Delete failed: ${error.message}`, 8000);
+    } else if (data === true) {
+      this.plugin.settings.systemSlug = '';
+      this.plugin.settings.starName = '';
+      this.plugin.settings.passphraseHash = '';
+      this.plugin.settings.systemSecret = '';
+      await this.plugin.saveSettings();
+      new Notice(`System "${slug}" deleted. You can create a new one by syncing.`, 5000);
+      this.onDeleted();
+    } else {
+      new Notice('Delete failed: owner secret did not match.', 8000);
+    }
+
+    this.close();
   }
 
   onClose() {
