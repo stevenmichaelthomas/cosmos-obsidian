@@ -20494,7 +20494,7 @@ var CosmosSettingTab = class extends import_obsidian2.PluginSettingTab {
     if (slugLocked) {
       systemNameSetting.setDesc(`Locked to slug: ${this.plugin.settings.systemSlug}`).addText((text) => text.setValue(this.plugin.settings.systemName).setDisabled(true));
     } else {
-      systemNameSetting.setDesc("The name of your solar system").addText((text) => text.setPlaceholder("my-vault").setValue(this.plugin.settings.systemName).onChange(async (value) => {
+      systemNameSetting.setDesc("The name of your solar system").addText((text) => text.setPlaceholder("My Vault").setValue(this.plugin.settings.systemName).onChange(async (value) => {
         this.plugin.settings.systemName = value;
         await this.plugin.saveSettings();
       }));

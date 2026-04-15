@@ -58,7 +58,7 @@ export class CosmosSettingTab extends PluginSettingTab {
       systemNameSetting
         .setDesc('The name of your solar system')
         .addText(text => text
-          .setPlaceholder('my-vault')
+          .setPlaceholder('My Vault')
           .setValue(this.plugin.settings.systemName)
           .onChange(async (value) => {
             this.plugin.settings.systemName = value;
