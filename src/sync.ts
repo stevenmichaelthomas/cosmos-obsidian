@@ -1,6 +1,5 @@
 import { Notice, Vault, TFile, parseYaml } from 'obsidian';
-import { createClient } from '@supabase/supabase-js';
-import { SUPABASE_URL, SUPABASE_ANON_KEY, COSMOS_BASE_URL } from './settings';
+import { COSMOS_BASE_URL, createCosmosClient } from './settings';
 import type { CosmosSettings } from './settings';
 import type { BodyKind, ContentType, EntryContent, HaikuContent, NoteContent, OrbitalParams } from './types';
 import { generateOrbital, contentToString } from './engine/orbital';
@@ -184,7 +183,7 @@ export async function syncVault(vault: Vault, settings: CosmosSettings): Promise
       // Settings will be saved by caller after sync completes
     }
 
-    const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const client = createCosmosClient();
 
     // Use persisted slug if available; otherwise derive from name
     const slug = settings.systemSlug || slugify(settings.systemName);

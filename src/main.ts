@@ -1,6 +1,5 @@
 import { Plugin, Modal, Notice, Setting } from 'obsidian';
-import { createClient } from '@supabase/supabase-js';
-import { CosmosSettings, CosmosSettingTab, DEFAULT_SETTINGS, SUPABASE_URL, SUPABASE_ANON_KEY } from './settings';
+import { CosmosSettings, CosmosSettingTab, DEFAULT_SETTINGS, createCosmosClient } from './settings';
 import { syncVault, computeOwnerHash } from './sync';
 
 export default class CosmosPlugin extends Plugin {
@@ -90,7 +89,7 @@ class DeleteSystemModal extends Modal {
     deleteBtn.textContent = 'Deleting...';
 
     const ownerHash = await computeOwnerHash(this.plugin.settings.systemSecret);
-    const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const client = createCosmosClient();
     const { data, error } = await client.rpc<boolean>('delete_system', {
       p_slug: slug,
       p_owner_secret_hash: ownerHash,

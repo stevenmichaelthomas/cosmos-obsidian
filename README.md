@@ -23,16 +23,15 @@ The transform uses a per-system secret that only exists on your device. Without 
 
 ## Installation
 
-### Via BRAT (recommended)
+### Via Obsidian Community Plugins (recommended)
 
-1. Install [BRAT](https://github.com/TfTHacker/obsidian42-brat) in Obsidian
-2. Open BRAT settings → "Add Beta Plugin"
-3. Enter this repo URL
-4. Enable "Cosmos" in Settings → Community Plugins
+1. Open Settings → Community Plugins → Browse
+2. Search for **Cosmos**
+3. Install and enable
 
 ### Manual
 
-Copy `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/stevenmichaelthomas/cosmos-obsidian/releases) into your vault at `.obsidian/plugins/cosmos-obsidian/`.
+Copy `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/stevenmichaelthomas/cosmos-obsidian/releases) into your vault at `.obsidian/plugins/cosmos-sync/`.
 
 ## Configuration
 
@@ -44,8 +43,8 @@ Open Settings → Cosmos:
 
 ## Usage
 
-- **Sync:** Command palette → "Cosmos: Sync vault to Cosmos" or the orbit icon in the ribbon
-- **Delete:** Command palette → "Cosmos: Delete system from Cosmos" (requires the original vault that created the system)
+- **Sync:** Command palette → "Cosmos: Sync vault" or the orbit icon in the ribbon
+- **Delete:** Command palette → "Cosmos: Delete system" (requires the original vault that created the system)
 
 Each sync reads your vault, computes orbital parameters locally, and uploads only the metadata for new entries. Your system name is locked to a slug after the first sync — renaming won't create duplicates.
 
@@ -54,6 +53,8 @@ Only the vault that created a system can delete it. Ownership is verified crypto
 ## Network use
 
 This plugin connects to a hosted [Supabase](https://supabase.com) database to store and retrieve orbital metadata. No vault content, file names, or identifying data is transmitted — only the derived numerical parameters (orbital radius, eccentricity, body size, color index). See "What leaves your machine" above.
+
+The plugin reads all markdown files in your vault (or a configured subfolder) to compute orbital parameters locally on your device. File contents are processed by a one-way cryptographic transform and never leave your machine. Only the resulting numbers are sent.
 
 ## Explore the galaxy
 

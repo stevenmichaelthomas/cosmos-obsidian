@@ -25,6 +25,9 @@ __export(main_exports, {
 module.exports = __toCommonJS(main_exports);
 var import_obsidian3 = require("obsidian");
 
+// src/settings.ts
+var import_obsidian2 = require("obsidian");
+
 // node_modules/tslib/tslib.es6.mjs
 function __rest(s, e) {
   var t = {};
@@ -19888,9 +19891,6 @@ function shouldShowDeprecationWarning() {
 }
 if (shouldShowDeprecationWarning()) console.warn("\u26A0\uFE0F  Node.js 18 and below are deprecated and will no longer be supported in future versions of @supabase/supabase-js. Please upgrade to Node.js 20 or later. For more information, visit: https://github.com/orgs/supabase/discussions/37217");
 
-// src/settings.ts
-var import_obsidian2 = require("obsidian");
-
 // src/sync.ts
 var import_obsidian = require("obsidian");
 
@@ -20306,7 +20306,7 @@ async function syncVault(vault, settings) {
     if (!settings.systemSecret) {
       settings.systemSecret = randomHash();
     }
-    const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const client = createCosmosClient();
     const slug = settings.systemSlug || slugify(settings.systemName);
     const { data: existingRaw } = await client.from("solar_systems").select("id").eq("slug", slug).maybeSingle();
     const existing = existingRaw;
@@ -20462,6 +20462,18 @@ async function syncVault(vault, settings) {
 // src/settings.ts
 var SUPABASE_URL = "https://gzhdsgkjwxjuelsvksde.supabase.co";
 var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6aGRzZ2tqd3hqdWVsc3Zrc2RlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxNjAzNzYsImV4cCI6MjA4OTczNjM3Nn0.D1B9zbnAynYDkydGVHMSuEP-rzwHoDh5812YLUrWizg";
+function createCosmosClient() {
+  return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false
+    },
+    realtime: {
+      transport: WebSocket
+    }
+  });
+}
 var DEFAULT_SETTINGS = {
   systemName: "",
   syncFolder: "",
@@ -20540,7 +20552,7 @@ var ConfirmDeleteModal = class extends import_obsidian2.Modal {
     deleteBtn.disabled = true;
     deleteBtn.textContent = "Deleting...";
     const ownerHash = await computeOwnerHash(this.plugin.settings.systemSecret);
-    const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const client = createCosmosClient();
     const { data, error } = await client.rpc("delete_system", {
       p_slug: slug,
       p_owner_secret_hash: ownerHash
@@ -20633,7 +20645,7 @@ var DeleteSystemModal = class extends import_obsidian3.Modal {
     deleteBtn.disabled = true;
     deleteBtn.textContent = "Deleting...";
     const ownerHash = await computeOwnerHash(this.plugin.settings.systemSecret);
-    const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const client = createCosmosClient();
     const { data, error } = await client.rpc("delete_system", {
       p_slug: slug,
       p_owner_secret_hash: ownerHash
