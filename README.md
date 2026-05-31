@@ -26,7 +26,7 @@ The transform uses a per-system secret that only exists on your device. Without 
 ### Via Obsidian Community Plugins (recommended)
 
 1. Open Settings → Community Plugins → Browse
-2. Search for **Cosmos**
+2. Search for **Cosmos** — or open the [plugin page](https://community.obsidian.md/plugins/cosmos-sync) directly
 3. Install and enable
 
 ### Manual
