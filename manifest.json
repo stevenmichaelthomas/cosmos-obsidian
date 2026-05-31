@@ -2,7 +2,7 @@
   "id": "cosmos-sync",
   "name": "Cosmos",
   "version": "0.4.2",
-  "minAppVersion": "1.0.0",
+  "minAppVersion": "1.2.3",
   "description": "Turn your vault into a solar system. Only the mathematical shadow of your writing leaves your machine.",
   "author": "Steven Thomas",
   "authorUrl": "https://cosmos.supermagicapps.com",

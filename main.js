@@ -20308,7 +20308,8 @@ async function syncVault(vault, settings) {
     }
     const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     const slug = settings.systemSlug || slugify(settings.systemName);
-    const { data: existing } = await client.from("solar_systems").select("id").eq("slug", slug).maybeSingle();
+    const { data: existingRaw } = await client.from("solar_systems").select("id").eq("slug", slug).maybeSingle();
+    const existing = existingRaw;
     let systemId;
     if (existing) {
       systemId = existing.id;
@@ -20378,7 +20379,7 @@ async function syncVault(vault, settings) {
     parsed.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     notice.setMessage(`Cosmos: computing orbits for ${parsed.length} files...`);
     const BATCH_SIZE = 200;
-    const enriched = new Array(parsed.length);
+    const enriched = [];
     for (let batchStart = 0; batchStart < parsed.length; batchStart += BATCH_SIZE) {
       const batchEnd = Math.min(batchStart + BATCH_SIZE, parsed.length);
       const batch = parsed.slice(batchStart, batchEnd);
@@ -20392,7 +20393,7 @@ async function syncVault(vault, settings) {
       for (let j = 0; j < batch.length; j++) {
         const idx = batchStart + j;
         const meta = generateOrbital(batch[j].contentType, batch[j].content, batch[j].date, idx, seeds[j], parsed.length);
-        enriched[idx] = { entry: batch[j], meta };
+        enriched.push({ entry: batch[j], meta });
       }
       if (batchStart > 0 && batchStart % 2e3 === 0) {
         notice.setMessage(`Cosmos: computing orbits... ${batchStart}/${parsed.length}`);
@@ -20402,12 +20403,9 @@ async function syncVault(vault, settings) {
     const skipped = enriched.length - newEntries.length;
     if (newEntries.length === 0) {
       notice.hide();
-      const frag2 = document.createDocumentFragment();
+      const frag2 = createFragment();
       frag2.appendText(`Cosmos: up to date (${skipped} entries synced). `);
-      const link2 = document.createElement("a");
-      link2.href = `${COSMOS_BASE_URL}/s/${slug}`;
-      link2.textContent = "View your galaxy \u2192";
-      link2.className = "cosmos-notice-link";
+      const link2 = createEl("a", { href: `${COSMOS_BASE_URL}/s/${slug}`, text: "View your galaxy \u2192", cls: "cosmos-notice-link" });
       link2.addEventListener("click", (e) => {
         e.preventDefault();
         window.open(link2.href, "_blank");
@@ -20444,12 +20442,9 @@ async function syncVault(vault, settings) {
       notice.setMessage(`Cosmos: synced ${inserted}/${newEntries.length}...`);
     }
     notice.hide();
-    const frag = document.createDocumentFragment();
+    const frag = createFragment();
     frag.appendText(`Cosmos: synced ${inserted} new entries (${skipped} already synced). `);
-    const link = document.createElement("a");
-    link.href = `${COSMOS_BASE_URL}/s/${slug}`;
-    link.textContent = "View your galaxy \u2192";
-    link.className = "cosmos-notice-link";
+    const link = createEl("a", { href: `${COSMOS_BASE_URL}/s/${slug}`, text: "View your galaxy \u2192", cls: "cosmos-notice-link" });
     link.addEventListener("click", (e) => {
       e.preventDefault();
       window.open(link.href, "_blank");
@@ -20484,7 +20479,6 @@ var CosmosSettingTab = class extends import_obsidian2.PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    new import_obsidian2.Setting(containerEl).setHeading();
     containerEl.createEl("p", {
       text: "Only orbital metadata leaves your machine. Content is never sent.",
       cls: "setting-item-description"
@@ -20500,7 +20494,7 @@ var CosmosSettingTab = class extends import_obsidian2.PluginSettingTab {
       }));
     }
     if (slugLocked) {
-      const linkEl = containerEl.createEl("div", { cls: "cosmos-galaxy-link" });
+      const linkEl = containerEl.createDiv({ cls: "cosmos-galaxy-link" });
       linkEl.createEl("a", {
         text: `View your galaxy \u2192`,
         href: `${COSMOS_BASE_URL}/s/${this.plugin.settings.systemSlug}`
@@ -20536,7 +20530,7 @@ var ConfirmDeleteModal = class extends import_obsidian2.Modal {
     btnRow.createEl("button", { text: "Cancel" }).addEventListener("click", () => this.close());
     const deleteBtn = btnRow.createEl("button", { text: "Delete", cls: "mod-warning" });
     deleteBtn.addEventListener("click", () => {
-      this.handleDelete(slug, deleteBtn).catch((err) => {
+      void this.handleDelete(slug, deleteBtn).catch((err) => {
         const msg = err instanceof Error ? err.message : String(err);
         new import_obsidian2.Notice(`Delete failed: ${msg}`, 8e3);
       });
@@ -20629,7 +20623,7 @@ var DeleteSystemModal = class extends import_obsidian3.Modal {
     btnRow.createEl("button", { text: "Cancel" }).addEventListener("click", () => this.close());
     const deleteBtn = btnRow.createEl("button", { text: "Delete", cls: "mod-warning" });
     deleteBtn.addEventListener("click", () => {
-      this.handleDelete(slug, deleteBtn).catch((err) => {
+      void this.handleDelete(slug, deleteBtn).catch((err) => {
         const msg = err instanceof Error ? err.message : String(err);
         new import_obsidian3.Notice(`Delete failed: ${msg}`, 8e3);
       });

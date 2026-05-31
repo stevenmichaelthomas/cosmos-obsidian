@@ -38,7 +38,6 @@ export class CosmosSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    new Setting(containerEl).setHeading();
     containerEl.createEl('p', {
       text: 'Only orbital metadata leaves your machine. Content is never sent.',
       cls: 'setting-item-description',
@@ -67,7 +66,7 @@ export class CosmosSettingTab extends PluginSettingTab {
     }
 
     if (slugLocked) {
-      const linkEl = containerEl.createEl('div', { cls: 'cosmos-galaxy-link' });
+      const linkEl = containerEl.createDiv({ cls: 'cosmos-galaxy-link' });
       linkEl.createEl('a', {
         text: `View your galaxy →`,
         href: `${COSMOS_BASE_URL}/s/${this.plugin.settings.systemSlug}`,
@@ -133,7 +132,7 @@ class ConfirmDeleteModal extends Modal {
 
     const deleteBtn = btnRow.createEl('button', { text: 'Delete', cls: 'mod-warning' });
     deleteBtn.addEventListener('click', () => {
-      this.handleDelete(slug, deleteBtn).catch(err => {
+      void this.handleDelete(slug, deleteBtn).catch(err => {
         const msg = err instanceof Error ? err.message : String(err);
         new Notice(`Delete failed: ${msg}`, 8000);
       });
@@ -146,7 +145,7 @@ class ConfirmDeleteModal extends Modal {
 
     const ownerHash = await computeOwnerHash(this.plugin.settings.systemSecret);
     const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    const { data, error } = await client.rpc('delete_system', {
+    const { data, error } = await client.rpc<boolean>('delete_system', {
       p_slug: slug,
       p_owner_secret_hash: ownerHash,
     });

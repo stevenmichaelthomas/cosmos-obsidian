@@ -40,7 +40,7 @@ export default class CosmosPlugin extends Plugin {
   }
 
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as Partial<CosmosSettings>);
   }
 
   async saveSettings() {
@@ -78,7 +78,7 @@ class DeleteSystemModal extends Modal {
 
     const deleteBtn = btnRow.createEl('button', { text: 'Delete', cls: 'mod-warning' });
     deleteBtn.addEventListener('click', () => {
-      this.handleDelete(slug, deleteBtn).catch(err => {
+      void this.handleDelete(slug, deleteBtn).catch(err => {
         const msg = err instanceof Error ? err.message : String(err);
         new Notice(`Delete failed: ${msg}`, 8000);
       });
@@ -91,7 +91,7 @@ class DeleteSystemModal extends Modal {
 
     const ownerHash = await computeOwnerHash(this.plugin.settings.systemSecret);
     const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    const { data, error } = await client.rpc('delete_system', {
+    const { data, error } = await client.rpc<boolean>('delete_system', {
       p_slug: slug,
       p_owner_secret_hash: ownerHash,
     });

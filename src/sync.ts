@@ -2,7 +2,7 @@ import { Notice, Vault, TFile, parseYaml } from 'obsidian';
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, COSMOS_BASE_URL } from './settings';
 import type { CosmosSettings } from './settings';
-import type { ContentType, EntryContent, HaikuContent, NoteContent } from './types';
+import type { BodyKind, ContentType, EntryContent, HaikuContent, NoteContent, OrbitalParams } from './types';
 import { generateOrbital, contentToString } from './engine/orbital';
 import { computeSecureSeed } from './engine/hash';
 
@@ -191,11 +191,12 @@ export async function syncVault(vault: Vault, settings: CosmosSettings): Promise
 
     // ── Get or create system ──────────────────────────────────
 
-    const { data: existing } = await client
+    const { data: existingRaw } = await client
       .from('solar_systems')
       .select('id')
       .eq('slug', slug)
       .maybeSingle();
+    const existing = existingRaw as { id: string } | null;
 
     let systemId: string;
 
@@ -204,7 +205,7 @@ export async function syncVault(vault: Vault, settings: CosmosSettings): Promise
     } else {
       notice.setMessage('Cosmos: creating solar system...');
       const ownerHash = await computeOwnerHash(settings.systemSecret);
-      const { data: newId, error } = await client.rpc('create_solar_system', {
+      const { data: newId, error } = await client.rpc<string>('create_solar_system', {
         p_name: settings.systemName,
         p_slug: slug,
         p_passphrase_hash: settings.passphraseHash,
@@ -236,7 +237,7 @@ export async function syncVault(vault: Vault, settings: CosmosSettings): Promise
       settings.starName = starName;
     }
 
-    const { data: starIdData, error: starErr } = await client.rpc('upsert_star', {
+    const { data: starIdData, error: starErr } = await client.rpc<string>('upsert_star', {
       p_system_id: systemId,
       p_name: starName,
       p_position: 0,
@@ -254,7 +255,7 @@ export async function syncVault(vault: Vault, settings: CosmosSettings): Promise
     let offset = 0;
     while (true) {
       const { data, error: entriesErr } = await client
-        .rpc('get_entries_public', { p_system_id: systemId })
+        .rpc<{ orbital_meta: { id?: string } | null }>('get_entries_public', { p_system_id: systemId })
         .range(offset, offset + PAGE_SIZE - 1);
       if (entriesErr) {
         throw new Error(`Failed to load existing entries: ${entriesErr.message}`);
@@ -294,7 +295,7 @@ export async function syncVault(vault: Vault, settings: CosmosSettings): Promise
 
     // Generate orbital metadata in parallel batches
     const BATCH_SIZE = 200;
-    const enriched: { entry: ParsedEntry; meta: ReturnType<typeof generateOrbital> }[] = new Array(parsed.length);
+    const enriched: { entry: ParsedEntry; meta: { kind: BodyKind; orbital: OrbitalParams; id: string } }[] = [];
     for (let batchStart = 0; batchStart < parsed.length; batchStart += BATCH_SIZE) {
       const batchEnd = Math.min(batchStart + BATCH_SIZE, parsed.length);
       const batch = parsed.slice(batchStart, batchEnd);
@@ -308,7 +309,7 @@ export async function syncVault(vault: Vault, settings: CosmosSettings): Promise
       for (let j = 0; j < batch.length; j++) {
         const idx = batchStart + j;
         const meta = generateOrbital(batch[j].contentType, batch[j].content, batch[j].date, idx, seeds[j], parsed.length);
-        enriched[idx] = { entry: batch[j], meta };
+        enriched.push({ entry: batch[j], meta });
       }
       if (batchStart > 0 && batchStart % 2000 === 0) {
         notice.setMessage(`Cosmos: computing orbits... ${batchStart}/${parsed.length}`);
@@ -321,12 +322,9 @@ export async function syncVault(vault: Vault, settings: CosmosSettings): Promise
 
     if (newEntries.length === 0) {
       notice.hide();
-      const frag = document.createDocumentFragment();
+      const frag = createFragment();
       frag.appendText(`Cosmos: up to date (${skipped} entries synced). `);
-      const link = document.createElement('a');
-      link.href = `${COSMOS_BASE_URL}/s/${slug}`;
-      link.textContent = 'View your galaxy →';
-      link.className = 'cosmos-notice-link';
+      const link = createEl('a', { href: `${COSMOS_BASE_URL}/s/${slug}`, text: 'View your galaxy →', cls: 'cosmos-notice-link' });
       link.addEventListener('click', (e) => {
         e.preventDefault();
         window.open(link.href, '_blank');
@@ -369,12 +367,9 @@ export async function syncVault(vault: Vault, settings: CosmosSettings): Promise
     }
 
     notice.hide();
-    const frag = document.createDocumentFragment();
+    const frag = createFragment();
     frag.appendText(`Cosmos: synced ${inserted} new entries (${skipped} already synced). `);
-    const link = document.createElement('a');
-    link.href = `${COSMOS_BASE_URL}/s/${slug}`;
-    link.textContent = 'View your galaxy →';
-    link.className = 'cosmos-notice-link';
+    const link = createEl('a', { href: `${COSMOS_BASE_URL}/s/${slug}`, text: 'View your galaxy →', cls: 'cosmos-notice-link' });
     link.addEventListener('click', (e) => {
       e.preventDefault();
       window.open(link.href, '_blank');
