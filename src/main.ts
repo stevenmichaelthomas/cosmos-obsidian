@@ -1,6 +1,7 @@
 import { Plugin, Modal, Notice, Setting } from 'obsidian';
-import { CosmosSettings, CosmosSettingTab, DEFAULT_SETTINGS, createCosmosClient } from './settings';
+import { CosmosSettings, CosmosSettingTab, DEFAULT_SETTINGS } from './settings';
 import { syncVault, computeOwnerHash } from './sync';
+import { rpc } from './db';
 
 export default class CosmosPlugin extends Plugin {
   settings: CosmosSettings = DEFAULT_SETTINGS;
@@ -89,8 +90,7 @@ class DeleteSystemModal extends Modal {
     deleteBtn.textContent = 'Deleting...';
 
     const ownerHash = await computeOwnerHash(this.plugin.settings.systemSecret);
-    const client = createCosmosClient();
-    const { data, error } = await client.rpc<boolean>('delete_system', {
+    const { data, error } = await rpc<boolean>('delete_system', {
       p_slug: slug,
       p_owner_secret_hash: ownerHash,
     });

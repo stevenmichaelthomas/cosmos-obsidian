@@ -1,25 +1,7 @@
 import { App, Modal, PluginSettingTab, Setting, Notice } from 'obsidian';
-import { createClient } from '@supabase/supabase-js';
 import type CosmosPlugin from './main';
 import { computeOwnerHash } from './sync';
-
-export const SUPABASE_URL = 'https://gzhdsgkjwxjuelsvksde.supabase.co';
-export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6aGRzZ2tqd3hqdWVsc3Zrc2RlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQxNjAzNzYsImV4cCI6MjA4OTczNjM3Nn0.D1B9zbnAynYDkydGVHMSuEP-rzwHoDh5812YLUrWizg';
-
-// Use native WebSocket (Electron/browser) so the ws npm package is never instantiated.
-// This avoids the ws vulnerability warning and prevents any localStorage usage by Supabase auth.
-export function createCosmosClient() {
-  return createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-      detectSessionInUrl: false,
-    },
-    realtime: {
-      transport: WebSocket,
-    },
-  });
-}
+import { rpc } from './db';
 
 export interface CosmosSettings {
   systemName: string;
@@ -159,8 +141,7 @@ class ConfirmDeleteModal extends Modal {
     deleteBtn.textContent = 'Deleting...';
 
     const ownerHash = await computeOwnerHash(this.plugin.settings.systemSecret);
-    const client = createCosmosClient();
-    const { data, error } = await client.rpc<boolean>('delete_system', {
+    const { data, error } = await rpc<boolean>('delete_system', {
       p_slug: slug,
       p_owner_secret_hash: ownerHash,
     });

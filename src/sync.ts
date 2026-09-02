@@ -1,5 +1,6 @@
 import { Notice, Vault, TFile, parseYaml } from 'obsidian';
-import { COSMOS_BASE_URL, createCosmosClient } from './settings';
+import { COSMOS_BASE_URL } from './settings';
+import { count as dbCount, rpc, selectMaybeSingle } from './db';
 import type { CosmosSettings } from './settings';
 import type { BodyKind, ContentType, EntryContent, HaikuContent, NoteContent, OrbitalParams } from './types';
 import { generateOrbital, contentToString } from './engine/orbital';
@@ -183,19 +184,16 @@ export async function syncVault(vault: Vault, settings: CosmosSettings): Promise
       // Settings will be saved by caller after sync completes
     }
 
-    const client = createCosmosClient();
-
     // Use persisted slug if available; otherwise derive from name
     const slug = settings.systemSlug || slugify(settings.systemName);
 
     // ── Get or create system ──────────────────────────────────
 
-    const { data: existingRaw } = await client
-      .from('solar_systems')
-      .select('id')
-      .eq('slug', slug)
-      .maybeSingle();
-    const existing = existingRaw as { id: string } | null;
+    const { data: existing } = await selectMaybeSingle<{ id: string }>(
+      'solar_systems',
+      'id',
+      { slug: `eq.${slug}` },
+    );
 
     let systemId: string;
 
@@ -204,7 +202,7 @@ export async function syncVault(vault: Vault, settings: CosmosSettings): Promise
     } else {
       notice.setMessage('Cosmos: creating solar system...');
       const ownerHash = await computeOwnerHash(settings.systemSecret);
-      const { data: newId, error } = await client.rpc<string>('create_solar_system', {
+      const { data: newId, error } = await rpc<string>('create_solar_system', {
         p_name: settings.systemName,
         p_slug: slug,
         p_passphrase_hash: settings.passphraseHash,
@@ -228,15 +226,12 @@ export async function syncVault(vault: Vault, settings: CosmosSettings): Promise
     let starName = settings.starName;
     if (!starName) {
       // Auto-name: Sol 1, Sol 2, ... based on existing star count
-      const { count } = await client
-        .from('stars')
-        .select('id', { count: 'exact', head: true })
-        .eq('system_id', systemId);
+      const { count } = await dbCount('stars', { system_id: `eq.${systemId}` });
       starName = `Sol ${(count ?? 0) + 1}`;
       settings.starName = starName;
     }
 
-    const { data: starIdData, error: starErr } = await client.rpc<string>('upsert_star', {
+    const { data: starIdData, error: starErr } = await rpc<string>('upsert_star', {
       p_system_id: systemId,
       p_name: starName,
       p_position: 0,
@@ -249,17 +244,23 @@ export async function syncVault(vault: Vault, settings: CosmosSettings): Promise
 
     // ── Fetch existing entry IDs ──────────────────────────────
 
+    // Paginate with limit/offset, ordered by a unique column so pages neither
+    // overlap nor skip rows. The previous Range-header loop never terminated
+    // past PAGE_SIZE entries: PostgREST ignores Range here, so every request
+    // returned the full set and the page was never short enough to break.
     const existingEntryIds = new Set<string>();
     const PAGE_SIZE = 1000;
     let offset = 0;
     while (true) {
-      const { data, error: entriesErr } = await client
-        .rpc<{ orbital_meta: { id?: string } | null }>('get_entries_public', { p_system_id: systemId })
-        .range(offset, offset + PAGE_SIZE - 1);
+      const { data, error: entriesErr } = await rpc<{ orbital_meta: { id?: string } | null }[]>(
+        'get_entries_public',
+        { p_system_id: systemId },
+        { select: 'id,orbital_meta', order: 'id', limit: PAGE_SIZE, offset },
+      );
       if (entriesErr) {
         throw new Error(`Failed to load existing entries: ${entriesErr.message}`);
       }
-      const page = (data ?? []) as { orbital_meta: { id?: string } | null }[];
+      const page = data ?? [];
       for (const e of page) {
         if (e.orbital_meta?.id) existingEntryIds.add(e.orbital_meta.id);
       }
@@ -345,7 +346,7 @@ export async function syncVault(vault: Vault, settings: CosmosSettings): Promise
       const results = await Promise.all(
         batch.map(({ entry, meta }) => {
           const storedContent = emptyContent(entry.contentType);
-          return client.rpc('add_entry', {
+          return rpc('add_entry', {
             p_system_id: systemId,
             p_star_id: starId,
             p_content_type: entry.contentType,

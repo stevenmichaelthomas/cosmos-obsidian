@@ -30,8 +30,20 @@ jobs:
             main.js
             styles.css
 
+      - name: Extract release notes for this tag
+        run: |
+          awk -v v="$GITHUB_REF_NAME" '
+            $0 ~ "^## " v "([^0-9.]|$)" { found = 1; next }
+            found && /^## / { exit }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "See the commit history for changes in $GITHUB_REF_NAME." > release-notes.md
+          fi
+
       - uses: softprops/action-gh-release@v2
         with:
+          body_path: release-notes.md
           files: |
             main.js
             manifest.json
